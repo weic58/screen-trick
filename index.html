@@ -64,7 +64,7 @@
     }
 
     .panel {
-      width: min(94vw, 620px);
+      width: min(94vw, 640px);
       max-height: 94vh;
       overflow-y: auto;
       background: var(--panel);
@@ -434,6 +434,7 @@
 </head>
 <body>
   <div id="app">
+    <!-- Step 0 -->
     <div v-if="step === 0" class="screen center-screen">
       <div class="panel">
         <div class="hero">
@@ -450,13 +451,14 @@
       </div>
     </div>
 
+    <!-- Step 1 -->
     <div v-if="step === 1" class="screen center-screen" style="align-items:flex-start;">
       <div class="panel">
         <div class="hero">
           <div class="badge">⚙︎ Setup</div>
           <h2>Screen Trick</h2>
           <div class="sub">
-            物件大小會分別記住；背景預覽大小也會分別記住。感測器數值只會在你按測試時更新。
+            物件大小會分別記住；背景縮放也會分別記住。感測器數值只會在按測試時更新。
           </div>
         </div>
 
@@ -486,7 +488,7 @@
 
           <template v-if="currentBg">
             <div class="row" style="margin-top:12px;">
-              <div class="label">背景預覽大小</div>
+              <div class="label">背景縮放</div>
               <div class="value">{{ currentBgScale.toFixed(0) }}%</div>
             </div>
             <input type="range" min="60" max="160" step="1" v-model.number="currentBgScale" />
@@ -552,10 +554,18 @@
         </div>
 
         <div class="group">
+          <div class="row">
+            <div class="label">拖曳消失靈敏度</div>
+            <div class="value">{{ dragDisappearRatio.toFixed(2) }}</div>
+          </div>
+          <input type="range" min="0.15" max="0.80" step="0.01" v-model.number="dragDisappearRatio" />
+        </div>
+
+        <div class="group">
           <div class="toggle-row">
             <div class="toggle-label">
-              <div class="toggle-title">點一下畫面可顯示物件</div>
-              <div class="toggle-desc">表演模式下，點一下空白處也能讓物件出現。</div>
+              <div class="toggle-title">點空白畫面顯示物件</div>
+              <div class="toggle-desc">表演模式下，點一下空白處也能叫出物件。</div>
             </div>
             <label class="switch">
               <input type="checkbox" v-model="tapToShow">
@@ -565,8 +575,8 @@
 
           <div class="toggle-row">
             <div class="toggle-label">
-              <div class="toggle-title">點一下畫面可隱藏物件</div>
-              <div class="toggle-desc">物件已顯示時，點一下空白處可讓它消失。</div>
+              <div class="toggle-title">點物件本身隱藏物件</div>
+              <div class="toggle-desc">只在輕點物件時生效；拖曳後放開不會誤判成隱藏。</div>
             </div>
             <label class="switch">
               <input type="checkbox" v-model="tapToHide">
@@ -595,6 +605,7 @@
       </div>
     </div>
 
+    <!-- Step 2 -->
     <div
       v-if="step === 2"
       class="screen magic-screen"
@@ -604,7 +615,7 @@
       }"
       @dblclick.prevent
     >
-      <div class="gesture-layer" @pointerdown="onStagePointerDown"></div>
+      <div class="gesture-layer" @pointerup="onStageTap"></div>
       <div class="secret-corner" @pointerup="onSecretExitTap"></div>
 
       <img
@@ -616,7 +627,7 @@
         :style="objectStyle"
         alt=""
         draggable="false"
-        @pointerdown="startDrag"
+        @pointerdown="startObjectInteraction"
         @load="onObjectImageLoad"
       />
     </div>
@@ -630,6 +641,7 @@
         const step = ref(0);
         const magicObjectEl = ref(null);
 
+        // ---------- Storage ----------
         const DB_NAME = 'screenTrickDB';
         const STORE_NAME = 'assets';
         let db = null;
@@ -644,9 +656,16 @@
 
         const tapToShow = ref(localStorage.getItem('screen_trick_tap_to_show') === 'true');
         const tapToHide = ref(localStorage.getItem('screen_trick_tap_to_hide') === 'true');
+        const dragDisappearRatio = ref(Number(localStorage.getItem('screen_trick_drag_disappear_ratio')) || 0.36);
 
         watch(tapToShow, v => localStorage.setItem('screen_trick_tap_to_show', String(v)));
         watch(tapToHide, v => localStorage.setItem('screen_trick_tap_to_hide', String(v)));
+        watch(dragDisappearRatio, v => localStorage.setItem('screen_trick_drag_disappear_ratio', String(v)));
+
+        const persistMaps = () => {
+          localStorage.setItem('screen_trick_object_size_map', JSON.stringify(objectSizeMap.value));
+          localStorage.setItem('screen_trick_bg_scale_map', JSON.stringify(backgroundScaleMap.value));
+        };
 
         const openDB = () => new Promise((resolve, reject) => {
           const request = indexedDB.open(DB_NAME, 1);
@@ -691,11 +710,6 @@
           req.onsuccess = () => resolve();
           req.onerror = () => reject(req.error);
         });
-
-        const persistMaps = () => {
-          localStorage.setItem('screen_trick_object_size_map', JSON.stringify(objectSizeMap.value));
-          localStorage.setItem('screen_trick_bg_scale_map', JSON.stringify(backgroundScaleMap.value));
-        };
 
         const refreshAssets = async () => {
           const all = await getAllAssets();
@@ -771,32 +785,22 @@
         const deleteAsset = async (type, id) => {
           await deleteAssetFromDB(id);
 
-          if (type === 'bg') {
-            delete backgroundScaleMap.value[id];
-          } else {
-            delete objectSizeMap.value[id];
-          }
+          if (type === 'bg') delete backgroundScaleMap.value[id];
+          if (type === 'obj') delete objectSizeMap.value[id];
           persistMaps();
 
           await refreshAssets();
-
-          if (type === 'bg' && selectedBgId.value === id) {
-            selectedBgId.value = backgrounds.value[0]?.id || '';
-            localStorage.setItem('screen_trick_selected_bg', selectedBgId.value || '');
-          }
-          if (type === 'obj' && selectedObjId.value === id) {
-            selectedObjId.value = objects.value[0]?.id || '';
-            localStorage.setItem('screen_trick_selected_obj', selectedObjId.value || '');
-            syncRenderedObjectSize();
-          }
+          syncRenderedObjectSize();
         };
 
+        // ---------- Settings ----------
         const tiltStrength = ref(Number(localStorage.getItem('screen_trick_tilt_strength')) || 1.2);
         const shakeThreshold = ref(Number(localStorage.getItem('screen_trick_shake_threshold')) || 2.8);
 
         watch(tiltStrength, v => localStorage.setItem('screen_trick_tilt_strength', String(v)));
         watch(shakeThreshold, v => localStorage.setItem('screen_trick_shake_threshold', String(v)));
 
+        // ---------- Sensor ----------
         const sensorReady = ref(false);
         const sensorStatus = ref('尚未測試感測器');
         const sensorDebugMode = ref(false);
@@ -807,6 +811,7 @@
         let orientationCount = 0;
         let sensorTestTimer = null;
 
+        // ---------- Physics ----------
         const isRevealed = ref(false);
 
         const posX = ref(window.innerWidth / 2);
@@ -827,24 +832,33 @@
         let lastShakeTime = 0;
         let animationId = null;
 
+        // object interaction
         const isDragging = ref(false);
-        let dragPointerId = null;
+        let objectPointerId = null;
         let dragOffsetX = 0;
         let dragOffsetY = 0;
+        let dragStartClientX = 0;
+        let dragStartClientY = 0;
         let lastDragX = 0;
+        let lastDragY = 0;
         let lastDragTime = 0;
+        let objectInteractionMoved = false;
+        let objectInteractionStartTime = 0;
 
+        // secret exit
         const secretTapCount = ref(0);
         let secretTapTimer = null;
         let exitLock = false;
 
+        // constants
         const SECRET_TAP_RESET_MS = 1100;
         const FRICTION = 0.992;
         const MAX_SPEED = 34;
         const BOUNCE = 0.035;
         const ANGULAR_FRICTION = 0.90;
         const WALL_SPIN_COOLDOWN_MS = 120;
-        const DRAG_DISAPPEAR_RATIO = 0.36;
+        const OBJECT_TAP_MOVE_THRESHOLD = 10;   // px
+        const OBJECT_TAP_TIME_THRESHOLD = 260;  // ms
 
         let lastWallSpinTimeX = 0;
         let lastWallSpinTimeY = 0;
@@ -919,10 +933,12 @@
           velY.value = 0;
           angularVelocity.value = 0;
           isDragging.value = false;
-          dragPointerId = null;
-          window.removeEventListener('pointermove', onDragMove);
-          window.removeEventListener('pointerup', endDrag);
-          window.removeEventListener('pointercancel', endDrag);
+          objectPointerId = null;
+          objectInteractionMoved = false;
+
+          window.removeEventListener('pointermove', onObjectPointerMove);
+          window.removeEventListener('pointerup', onObjectPointerUp);
+          window.removeEventListener('pointercancel', onObjectPointerUp);
         };
 
         const revealObject = () => {
@@ -946,7 +962,7 @@
           const bottomOutside = Math.max(0, y + halfH - h);
 
           const maxOutside = Math.max(leftOutside, rightOutside, topOutside, bottomOutside);
-          return maxOutside > Math.min(renderedWidth.value, renderedHeight.value) * DRAG_DISAPPEAR_RATIO;
+          return maxOutside > Math.min(renderedWidth.value, renderedHeight.value) * Number(dragDisappearRatio.value);
         };
 
         const addWallSpin = (axis, incomingVelocity) => {
@@ -1040,6 +1056,7 @@
           animationId = requestAnimationFrame(animate);
         };
 
+        // ---------- Image processing ----------
         const compressBackground = (file, maxWidth = 1400, quality = 0.84) => {
           return new Promise((resolve, reject) => {
             const reader = new FileReader();
@@ -1114,11 +1131,8 @@
 
             await saveAssetToDB(asset);
 
-            if (type === 'bg') {
-              backgroundScaleMap.value[asset.id] = 100;
-            } else {
-              objectSizeMap.value[asset.id] = 150;
-            }
+            if (type === 'bg') backgroundScaleMap.value[asset.id] = 100;
+            if (type === 'obj') objectSizeMap.value[asset.id] = 150;
             persistMaps();
 
             await refreshAssets();
@@ -1132,6 +1146,7 @@
           }
         };
 
+        // ---------- Sensors ----------
         const handleMotion = (e) => {
           motionCount++;
 
@@ -1254,6 +1269,7 @@ orientation: ${orientationCount} 次`;
           }
         };
 
+        // ---------- Performance ----------
         const enterMagicMode = () => {
           if (!currentBg.value || !currentObj.value) return;
           step.value = 2;
@@ -1265,31 +1281,46 @@ orientation: ${orientationCount} 次`;
           startSensors();
         };
 
-        const startDrag = (e) => {
+        // ---------- Object interaction: drag vs tap ----------
+        const startObjectInteraction = (e) => {
           if (!isRevealed.value) return;
 
           e.preventDefault();
           e.stopPropagation();
 
           isDragging.value = true;
-          dragPointerId = e.pointerId;
+          objectPointerId = e.pointerId;
           dragOffsetX = e.clientX - posX.value;
           dragOffsetY = e.clientY - posY.value;
+
+          dragStartClientX = e.clientX;
+          dragStartClientY = e.clientY;
           lastDragX = e.clientX;
+          lastDragY = e.clientY;
           lastDragTime = performance.now();
+          objectInteractionMoved = false;
+          objectInteractionStartTime = performance.now();
 
           if (e.target.setPointerCapture) {
             e.target.setPointerCapture(e.pointerId);
           }
 
-          window.addEventListener('pointermove', onDragMove, { passive: false });
-          window.addEventListener('pointerup', endDrag, { passive: false });
-          window.addEventListener('pointercancel', endDrag, { passive: false });
+          window.addEventListener('pointermove', onObjectPointerMove, { passive: false });
+          window.addEventListener('pointerup', onObjectPointerUp, { passive: false });
+          window.addEventListener('pointercancel', onObjectPointerUp, { passive: false });
         };
 
-        const onDragMove = (e) => {
-          if (!isDragging.value || e.pointerId !== dragPointerId) return;
+        const onObjectPointerMove = (e) => {
+          if (!isDragging.value || e.pointerId !== objectPointerId) return;
           e.preventDefault();
+
+          const totalDx = e.clientX - dragStartClientX;
+          const totalDy = e.clientY - dragStartClientY;
+          const totalDist = Math.hypot(totalDx, totalDy);
+
+          if (totalDist > OBJECT_TAP_MOVE_THRESHOLD) {
+            objectInteractionMoved = true;
+          }
 
           posX.value = e.clientX - dragOffsetX;
           posY.value = e.clientY - dragOffsetY;
@@ -1303,19 +1334,33 @@ orientation: ${orientationCount} 次`;
           angularVelocity.value += dx * 0.0018;
 
           lastDragX = e.clientX;
+          lastDragY = e.clientY;
           lastDragTime = now;
         };
 
-        const endDrag = (e) => {
-          if (dragPointerId !== null && e.pointerId !== undefined && e.pointerId !== dragPointerId) return;
+        const onObjectPointerUp = (e) => {
+          if (objectPointerId !== null && e.pointerId !== undefined && e.pointerId !== objectPointerId) return;
+
+          const interactionDuration = performance.now() - objectInteractionStartTime;
+          const wasTap = !objectInteractionMoved && interactionDuration <= OBJECT_TAP_TIME_THRESHOLD;
 
           isDragging.value = false;
-          dragPointerId = null;
+          objectPointerId = null;
 
-          window.removeEventListener('pointermove', onDragMove);
-          window.removeEventListener('pointerup', endDrag);
-          window.removeEventListener('pointercancel', endDrag);
+          window.removeEventListener('pointermove', onObjectPointerMove);
+          window.removeEventListener('pointerup', onObjectPointerUp);
+          window.removeEventListener('pointercancel', onObjectPointerUp);
 
+          if (wasTap) {
+            velX.value = 0;
+            velY.value = 0;
+            if (tapToHide.value) {
+              hideObject();
+            }
+            return;
+          }
+
+          // 真的是拖曳才判定是否拖出界
           if (shouldDisappearByDrag()) {
             hideObject();
             return;
@@ -1324,25 +1369,20 @@ orientation: ${orientationCount} 次`;
           clampInsideStage();
         };
 
-        const onStagePointerDown = (e) => {
+        // ---------- Stage tap ----------
+        const onStageTap = (e) => {
           e.preventDefault();
 
           if (step.value !== 2) return;
           if (isDragging.value) return;
+          if (isRevealed.value) return;
 
-          const target = e.target;
-          if (target && target.classList && target.classList.contains('magic-object')) return;
-
-          if (!isRevealed.value && tapToShow.value) {
+          if (tapToShow.value) {
             revealObject();
-            return;
-          }
-
-          if (isRevealed.value && tapToHide.value) {
-            hideObject();
           }
         };
 
+        // ---------- Secret exit ----------
         const onSecretExitTap = async (e) => {
           e.preventDefault();
           e.stopPropagation();
@@ -1363,8 +1403,6 @@ orientation: ${orientationCount} 次`;
             clearTimeout(secretTapTimer);
             secretTapCount.value = 0;
 
-            isDragging.value = false;
-            dragPointerId = null;
             hideObject();
             step.value = 1;
 
@@ -1408,11 +1446,13 @@ orientation: ${orientationCount} 次`;
           stopSensors();
           clearTimeout(sensorTestTimer);
           clearTimeout(secretTapTimer);
+
           window.removeEventListener('resize', handleResize);
-          window.removeEventListener('pointermove', onDragMove);
-          window.removeEventListener('pointerup', endDrag);
-          window.removeEventListener('pointercancel', endDrag);
+          window.removeEventListener('pointermove', onObjectPointerMove);
+          window.removeEventListener('pointerup', onObjectPointerUp);
+          window.removeEventListener('pointercancel', onObjectPointerUp);
           document.removeEventListener('dblclick', preventDoubleTapZoom);
+
           if (animationId) cancelAnimationFrame(animationId);
         });
 
@@ -1430,6 +1470,7 @@ orientation: ${orientationCount} 次`;
           currentBgScale,
           tiltStrength,
           shakeThreshold,
+          dragDisappearRatio,
           tapToShow,
           tapToHide,
           isRevealed,
@@ -1441,11 +1482,11 @@ orientation: ${orientationCount} 次`;
           selectAsset,
           deleteAsset,
           enterMagicMode,
-          startDrag,
-          onStagePointerDown,
+          onStageTap,
           onSecretExitTap,
           formatTime,
-          onObjectImageLoad
+          onObjectImageLoad,
+          startObjectInteraction
         };
       }
     }).mount('#app');
