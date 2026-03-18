@@ -3,33 +3,34 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Magic Trick Setup</title>
+  <title>Digital Magic Setup</title>
   <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
   <style>
-    body, html { margin: 0; padding: 0; width: 100vw; height: 100vh; overflow: hidden; background-color: #000; font-family: sans-serif; }
+    body, html { margin: 0; padding: 0; width: 100vw; height: 100vh; overflow: hidden; background-color: #000; font-family: sans-serif; user-select: none; -webkit-user-select: none; }
     #app { width: 100%; height: 100%; position: relative; }
     
-    /* 步驟一：解鎖畫面（用來騙取 iOS 感測器權限） */
-    .unlock-screen { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: #222; z-index: 100; }
-    .unlock-btn { padding: 15px 30px; font-size: 20px; border-radius: 10px; border: none; background: #fff; cursor: pointer; }
+    /* 步驟零：解鎖畫面（騙取 iOS 感測器權限） */
+    .unlock-screen { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: #111; z-index: 100; }
+    .btn { padding: 12px 24px; font-size: 18px; border-radius: 8px; border: none; background: #fff; color: #000; cursor: pointer; font-weight: bold; margin-top: 10px; }
+    .btn-danger { background: #ff4d4d; color: white; }
+    .btn-primary { background: #4da6ff; color: white; width: 100%; padding: 15px; font-size: 20px;}
 
-    /* 步驟二：暗中設定區 */
-    .setup-screen { position: absolute; inset: 0; background: #333; color: white; padding: 20px; z-index: 50; display: flex; flex-direction: column; gap: 20px; }
+    /* 步驟一：設定區 */
+    .setup-screen { position: absolute; inset: 0; background: #222; color: white; padding: 30px 20px; z-index: 50; display: flex; flex-direction: column; gap: 20px; overflow-y: auto; }
+    .setup-group { background: #333; padding: 15px; border-radius: 10px; display: flex; flex-direction: column; gap: 10px; }
+    .preview-img { max-width: 100px; max-height: 100px; border-radius: 5px; object-fit: cover; border: 1px solid #555; }
+    input[type="range"] { width: 100%; }
     
-    /* 步驟三：魔術主畫面 */
+    /* 步驟二：魔術主畫面 */
     .magic-screen { position: absolute; inset: 0; background-size: cover; background-position: center; z-index: 10; }
     
-    /* 隱藏觸發區（左上角）與上傳按鈕 */
-    .hidden-trigger { position: absolute; top: 0; left: 0; width: 80px; height: 80px; z-index: 20; opacity: 0; }
-    input[type="file"] { display: none; }
+    /* 左上角秘密觸發區（連點三下回設定） */
+    .hidden-trigger { position: absolute; top: 0; left: 0; width: 90px; height: 90px; z-index: 20; opacity: 0; }
 
-    /* 魔術物件（硬幣/撲克牌） */
+    /* 魔術物件 */
     .magic-object {
       position: absolute;
-      width: 100px; /* 可依需求調整大小 */
-      height: auto;
-      transition: opacity 0.3s ease;
-      /* 讓中心點對齊座標 */
+      transition: opacity 0.2s ease;
       transform: translate(-50%, -50%); 
       will-change: left, top;
     }
@@ -38,22 +39,38 @@
 <body>
   <div id="app">
     <div v-if="step === 0" class="unlock-screen">
-      <button class="unlock-btn" @click="requestPermissions">Start</button>
+      <button class="btn" @click="requestPermissions">Tap to Start</button>
     </div>
 
     <div v-if="step === 1" class="setup-screen">
-      <h3>Setup Phase</h3>
-      <label>1. 上傳桌面截圖 (Background):
-        <input type="file" style="display:block" @change="onBgUpload" accept="image/*">
-      </label>
-      <label>2. 上傳撲克牌/硬幣 (Object):
-        <input type="file" style="display:block" @change="onObjUpload" accept="image/*">
-      </label>
-      <button class="unlock-btn" v-if="bgImage && objImage" @click="enterMagicMode">進入魔術模式</button>
+      <h2 style="margin: 0;">🛠️ 魔術後台設定</h2>
+      
+      <div class="setup-group">
+        <label>1. 背景截圖 (Background)</label>
+        <input type="file" @change="(e) => compressAndSave(e, 'bg')" accept="image/*">
+        <img v-if="bgImage" :src="bgImage" class="preview-img">
+      </div>
+
+      <div class="setup-group">
+        <label>2. 變出物件 (Coin / Card)</label>
+        <input type="file" @change="(e) => compressAndSave(e, 'obj')" accept="image/*">
+        <img v-if="objImage" :src="objImage" class="preview-img">
+        
+        <label style="margin-top: 10px;">物件大小: {{ objSize }}px</label>
+        <input type="range" min="50" max="400" v-model="objSize" @change="saveSettings">
+      </div>
+
+      <div style="display: flex; gap: 10px;">
+        <button class="btn btn-danger" style="flex: 1;" @click="clearMemory">清除記憶</button>
+      </div>
+
+      <button class="btn btn-primary" :disabled="!bgImage || !objImage" @click="enterMagicMode">
+        {{ (!bgImage || !objImage) ? '請先上傳圖片' : '進入魔術模式' }}
+      </button>
     </div>
 
     <div v-if="step === 2" class="magic-screen" :style="{ backgroundImage: `url(${bgImage})` }">
-      <div class="hidden-trigger" @click="resetMagic"></div>
+      <div class="hidden-trigger" @touchstart="onSecretTap"></div>
 
       <img 
         v-if="objImage" 
@@ -61,6 +78,7 @@
         class="magic-object"
         :style="{ 
           opacity: isRevealed ? 1 : 0, 
+          width: objSize + 'px',
           left: objX + 'px', 
           top: objY + 'px',
           pointerEvents: isRevealed ? 'auto' : 'none'
@@ -78,116 +96,180 @@
     createApp({
       setup() {
         const step = ref(0);
-        const bgImage = ref('');
-        const objImage = ref('');
         
-        // 物件狀態
+        // 讀取 localStorage 記憶
+        const bgImage = ref(localStorage.getItem('magic_bg') || '');
+        const objImage = ref(localStorage.getItem('magic_obj') || '');
+        const objSize = ref(parseInt(localStorage.getItem('magic_size')) || 120);
+        
         const isRevealed = ref(false);
         const objX = ref(window.innerWidth / 2);
         const objY = ref(window.innerHeight / 2);
         const isDragging = ref(false);
 
-        // 搖晃偵測相關變數
-        const shakeThreshold = 15; // 搖晃力道閾值，可微調
+        // 搖晃偵測參數
+        let lastUpdate = 0;
         let lastX = null, lastY = null, lastZ = null;
+        const SHAKE_THRESHOLD = 600; // 搖晃力道門檻，若覺得太難搖可以調低 (例如400)，太容易觸發可以調高
 
-        // 步驟 1：要求 iOS 感測器權限
+        // 秘密點擊參數
+        let secretTapCount = 0;
+        let secretTapTimer = null;
+
         const requestPermissions = async () => {
           if (typeof DeviceMotionEvent.requestPermission === 'function') {
             try {
-              const permissionState = await DeviceMotionEvent.requestPermission();
-              if (permissionState === 'granted') {
-                step.value = 1;
-              } else {
-                alert('需要感測器權限才能變魔術喔！');
-              }
-            } catch (error) {
-              console.error(error);
-            }
+              const permission = await DeviceMotionEvent.requestPermission();
+              if (permission === 'granted') step.value = 1;
+              else alert('需要動作感測器權限才能觸發搖晃！');
+            } catch (error) { console.error(error); }
           } else {
-            // 非 iOS 13+ 設備，直接進入下一步
-            step.value = 1;
+            step.value = 1; // Android 直接進入
           }
         };
 
-        // 圖片上傳處理 (轉為 Base64 預覽)
-        const handleImageUpload = (e, targetRef) => {
+        // 圖片壓縮與儲存 (避免截圖太大塞爆 localStorage)
+        const compressAndSave = (e, type) => {
           const file = e.target.files[0];
-          if (file) {
-            const reader = new FileReader();
-            reader.onload = (e) => targetRef.value = e.target.result;
-            reader.readAsDataURL(file);
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            const img = new Image();
+            img.onload = () => {
+              const canvas = document.createElement('canvas');
+              const ctx = canvas.getContext('2d');
+              // 限制最大寬度為 800px 以節省空間
+              const maxWidth = 800;
+              let width = img.width;
+              let height = img.height;
+              if (width > maxWidth) {
+                height = Math.round(height * maxWidth / width);
+                width = maxWidth;
+              }
+              canvas.width = width;
+              canvas.height = height;
+              ctx.drawImage(img, 0, 0, width, height);
+              
+              // 轉為較低畫質的 JPEG 儲存 (0.7 quality)
+              const dataUrl = type === 'bg' ? canvas.toDataURL('image/jpeg', 0.8) : canvas.toDataURL('image/png'); // 物件通常需要透明背景保留PNG
+              
+              if (type === 'bg') bgImage.value = dataUrl;
+              else objImage.value = dataUrl;
+              
+              saveSettings();
+            };
+            img.src = event.target.result;
+          };
+          reader.readAsDataURL(file);
+        };
+
+        const saveSettings = () => {
+          try {
+            localStorage.setItem('magic_bg', bgImage.value);
+            localStorage.setItem('magic_obj', objImage.value);
+            localStorage.setItem('magic_size', objSize.value);
+          } catch (e) {
+            alert('手機記憶體空間不足以儲存，請嘗試上傳較小的圖片。');
           }
         };
-        const onBgUpload = (e) => handleImageUpload(e, bgImage);
-        const onObjUpload = (e) => handleImageUpload(e, objImage);
 
-        // 步驟 2：進入魔術模式並啟動監聽
+        const clearMemory = () => {
+          bgImage.value = ''; objImage.value = '';
+          localStorage.removeItem('magic_bg');
+          localStorage.removeItem('magic_obj');
+        };
+
         const enterMagicMode = () => {
           step.value = 2;
           isRevealed.value = false;
-          objX.value = window.innerWidth / 2;
-          objY.value = window.innerHeight / 2;
           window.addEventListener('devicemotion', handleMotion);
           window.addEventListener('deviceorientation', handleOrientation);
-        };
-
-        // 搖晃偵測 (Device Motion)
-        const handleMotion = (e) => {
-          if (isRevealed.value || !e.accelerationIncludingGravity) return;
-          const { x, y, z } = e.accelerationIncludingGravity;
-          if (lastX === null) { lastX = x; lastY = y; lastZ = z; return; }
-
-          const deltaX = Math.abs(lastX - x);
-          const deltaY = Math.abs(lastY - y);
-          const deltaZ = Math.abs(lastZ - z);
-
-          if (deltaX + deltaY + deltaZ > shakeThreshold) {
-            // 觸發出現！
-            isRevealed.value = true;
-            // 讓物件從畫面正中央出現
-            objX.value = window.innerWidth / 2;
-            objY.value = window.innerHeight / 2;
+          
+          // 嘗試進入全螢幕 (部分瀏覽器支援)
+          if(document.documentElement.requestFullscreen) {
+            document.documentElement.requestFullscreen().catch(()=>{});
           }
-          lastX = x; lastY = y; lastZ = z;
         };
 
-        // 陀螺儀滑動 (Device Orientation)
+        // 改良版搖晃偵測
+        const handleMotion = (e) => {
+          if (isRevealed.value) return; // 出現了就不再偵測搖晃
+          const acc = e.acceleration || e.accelerationIncludingGravity;
+          if (!acc || acc.x === null) return;
+
+          const currentTime = Date.now();
+          if ((currentTime - lastUpdate) > 100) { // 每 100 毫秒取樣一次
+            const diffTime = (currentTime - lastUpdate);
+            lastUpdate = currentTime;
+
+            if (lastX !== null) {
+              // 計算瞬間加速度變化率
+              const speed = Math.abs(acc.x + acc.y + acc.z - lastX - lastY - lastZ) / diffTime * 10000;
+              if (speed > SHAKE_THRESHOLD) {
+                // 搖晃成功！
+                isRevealed.value = true;
+                objX.value = window.innerWidth / 2;
+                objY.value = window.innerHeight / 2;
+                // 觸發震動回饋 (如果裝置支援)
+                if (navigator.vibrate) navigator.vibrate([50, 50, 50]);
+              }
+            }
+            lastX = acc.x; lastY = acc.y; lastZ = acc.z;
+          }
+        };
+
+        // 陀螺儀滑動
         const handleOrientation = (e) => {
           if (!isRevealed.value || isDragging.value) return;
-          // 這裡做一個簡單的阻尼偏移，Gamma 是左右，Beta 是前後
-          // 實際魔術可能需要更複雜的物理碰撞計算，這裡先做基礎跟隨
-          const speed = 1.5;
+          const speed = 1.2; // 靈敏度
           objX.value += e.gamma * speed;
-          objY.value += (e.beta - 30) * speed; // 減 30 是為了抵消手持手機自然的傾斜角
+          objY.value += (e.beta - 30) * speed; 
         };
 
-        // 拖曳處理 (Touch Events)
+        // 拖曳處理
         const onTouchStart = (e) => { isDragging.value = true; };
         const onTouchMove = (e) => {
           if (!isDragging.value) return;
-          e.preventDefault(); // 防止滑動到系統上一頁
+          e.preventDefault(); 
           const touch = e.touches[0];
           objX.value = touch.clientX;
           objY.value = touch.clientY;
         };
         const onTouchEnd = (e) => {
           isDragging.value = false;
-          // 這裡可以加入判斷：如果座標太靠近螢幕邊緣，就把 isRevealed 設為 false (丟出去了)
-          if (objX.value < 0 || objX.value > window.innerWidth || objY.value < 0 || objY.value > window.innerHeight) {
-            isRevealed.value = false;
+          // 如果滑到畫面最邊緣，視為「丟出去」
+          const threshold = objSize.value / 2;
+          if (objX.value < -threshold || objX.value > window.innerWidth + threshold || 
+              objY.value < -threshold || objY.value > window.innerHeight + threshold) {
+            isRevealed.value = false; // 隱藏物件
           }
         };
 
-        // 點擊左上角隱形區塊重置
-        const resetMagic = () => {
-          isRevealed.value = false;
+        // 秘密角落連點三下處理
+        const onSecretTap = (e) => {
+          e.preventDefault();
+          secretTapCount++;
+          if (secretTapCount === 1) {
+            secretTapTimer = setTimeout(() => { secretTapCount = 0; }, 800); // 800毫秒內沒點完就重置
+          }
+          if (secretTapCount >= 3) {
+            clearTimeout(secretTapTimer);
+            secretTapCount = 0;
+            isRevealed.value = false;
+            // 移除感測器監聽，避免背景繼續運算
+            window.removeEventListener('devicemotion', handleMotion);
+            window.removeEventListener('deviceorientation', handleOrientation);
+            step.value = 1; // 回到設定畫面
+            
+            // 退出全螢幕
+            if(document.exitFullscreen) document.exitFullscreen().catch(()=>{});
+          }
         };
 
         return {
-          step, bgImage, objImage, isRevealed, objX, objY,
-          requestPermissions, onBgUpload, onObjUpload, enterMagicMode,
-          onTouchStart, onTouchMove, onTouchEnd, resetMagic
+          step, bgImage, objImage, objSize, isRevealed, objX, objY,
+          requestPermissions, compressAndSave, saveSettings, clearMemory, enterMagicMode,
+          onTouchStart, onTouchMove, onTouchEnd, onSecretTap
         };
       }
     }).mount('#app');
