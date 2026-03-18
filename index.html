@@ -6,7 +6,7 @@
     name="viewport"
     content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
   />
-  <title>Magic Coin Pro+</title>
+  <title>Magic Coin Pro Final</title>
   <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
   <style>
     :root {
@@ -16,7 +16,6 @@
       --muted: #b8b8b8;
       --accent: #4da6ff;
       --danger: #ff6b6b;
-      --ok: #67d98b;
     }
 
     * {
@@ -58,12 +57,12 @@
       justify-content: center;
       background:
         radial-gradient(circle at center, #222 0%, #111 40%, #000 100%);
-      padding: 20px;
+      padding: 16px;
     }
 
     .panel {
-      width: min(94vw, 520px);
-      max-height: 92vh;
+      width: min(94vw, 560px);
+      max-height: 94vh;
       overflow-y: auto;
       background: var(--panel-bg);
       color: var(--text);
@@ -113,7 +112,7 @@
     .value {
       font-size: 13px;
       color: var(--muted);
-      min-width: 70px;
+      min-width: 80px;
       text-align: right;
     }
 
@@ -307,21 +306,21 @@
 </head>
 <body>
   <div id="app">
-    <!-- 啟動 -->
+    <!-- Step 0 -->
     <div v-if="step === 0" class="screen center-screen">
       <div class="panel">
-        <h1>🪄 Magic Coin Pro+</h1>
-        <p>先允許感測器權限，再進入素材設定。</p>
+        <h1>🪄 Magic Coin Pro Final</h1>
+        <p>先允許感測器權限，再進入設定。</p>
         <button class="btn" @click="requestPermissions">開始</button>
         <div class="status">{{ sensorStatus }}</div>
       </div>
     </div>
 
-    <!-- 設定 -->
-    <div v-if="step === 1" class="screen center-screen" style="align-items: flex-start; padding-top: 16px; padding-bottom: 16px;">
+    <!-- Step 1 -->
+    <div v-if="step === 1" class="screen center-screen" style="align-items: flex-start;">
       <div class="panel">
         <h2>⚙️ 魔術設定</h2>
-        <p>現在會記住多個背景與多個物件，可以選擇、切換、刪除。</p>
+        <p>這版會記住多個背景與物件，且滑動速度、摩擦力等都可用拉桿調整。</p>
 
         <div class="group">
           <h3>🖼️ 背景素材</h3>
@@ -384,17 +383,50 @@
         <div class="group">
           <div class="row">
             <div class="label">晃動觸發門檻</div>
-            <div class="value">{{ shakeThreshold.toFixed(1) }}</div>
+            <div class="value">{{ shakeThreshold.toFixed(2) }}</div>
           </div>
-          <input type="range" min="1.5" max="12" step="0.1" v-model="shakeThreshold" />
+          <input type="range" min="1.0" max="12" step="0.1" v-model="shakeThreshold" />
         </div>
 
         <div class="group">
           <div class="row">
-            <div class="label">傾斜推動靈敏度</div>
+            <div class="label">傾斜推力</div>
             <div class="value">{{ tiltForce.toFixed(2) }}</div>
           </div>
-          <input type="range" min="0.08" max="1.2" step="0.02" v-model="tiltForce" />
+          <input type="range" min="0.2" max="2.8" step="0.05" v-model="tiltForce" />
+        </div>
+
+        <div class="group">
+          <div class="row">
+            <div class="label">推力倍率</div>
+            <div class="value">{{ tiltAccelMultiplier.toFixed(2) }}</div>
+          </div>
+          <input type="range" min="1.0" max="6.0" step="0.1" v-model="tiltAccelMultiplier" />
+        </div>
+
+        <div class="group">
+          <div class="row">
+            <div class="label">摩擦力（越大越滑）</div>
+            <div class="value">{{ friction.toFixed(3) }}</div>
+          </div>
+          <input type="range" min="0.960" max="0.999" step="0.001" v-model="friction" />
+        </div>
+
+        <div class="group">
+          <div class="row">
+            <div class="label">最高速度</div>
+            <div class="value">{{ maxSpeed.toFixed(1) }}</div>
+          </div>
+          <input type="range" min="8" max="60" step="1" v-model="maxSpeed" />
+        </div>
+
+        <div class="group">
+          <div class="row">
+            <div class="label">拖曳消失比例</div>
+            <div class="value">{{ dragDisappearRatio.toFixed(2) }}</div>
+          </div>
+          <input type="range" min="0.1" max="0.8" step="0.01" v-model="dragDisappearRatio" />
+          <p class="footer-note">數值越小，拖出去一點點就會消失；越大要拖更出去才會消失。</p>
         </div>
 
         <div class="group">
@@ -406,22 +438,18 @@
           <button class="btn secondary" @click="testSensors">重新測試感測器</button>
         </div>
 
-        <button
-          class="btn"
-          :disabled="!currentBg || !currentObj"
-          @click="enterMagicMode"
-        >
+        <button class="btn" :disabled="!currentBg || !currentObj" @click="enterMagicMode">
           進入表演模式
         </button>
 
         <p class="footer-note">
           左上角 1.1 秒內點 3 下回設定頁。<br>
-          硬幣拖到邊緣會消失，必須再晃一次才重新出現。
+          傾斜移動只會撞牆停住；只有手指拖出邊界才會消失。
         </p>
       </div>
     </div>
 
-    <!-- 表演 -->
+    <!-- Step 2 -->
     <div
       v-if="step === 2"
       class="screen magic-screen"
@@ -518,6 +546,7 @@
 
         const refreshAssets = async () => {
           const all = await getAllAssets();
+
           backgrounds.value = all
             .filter(x => x.type === 'bg')
             .sort((a, b) => b.createdAt - a.createdAt);
@@ -576,14 +605,22 @@
           }
         };
 
-        // ---------- 設定 ----------
+        // ---------- 可調參數 ----------
         const objectSize = ref(Number(localStorage.getItem('magic_object_size')) || 150);
         const shakeThreshold = ref(Number(localStorage.getItem('magic_shake_threshold')) || 3.5);
-        const tiltForce = ref(Number(localStorage.getItem('magic_tilt_force')) || 0.35);
+        const tiltForce = ref(Number(localStorage.getItem('magic_tilt_force')) || 1.25);
+        const tiltAccelMultiplier = ref(Number(localStorage.getItem('magic_tilt_accel_multiplier')) || 3.6);
+        const friction = ref(Number(localStorage.getItem('magic_friction')) || 0.994);
+        const maxSpeed = ref(Number(localStorage.getItem('magic_max_speed')) || 36);
+        const dragDisappearRatio = ref(Number(localStorage.getItem('magic_drag_disappear_ratio')) || 0.38);
 
         watch(objectSize, v => localStorage.setItem('magic_object_size', String(v)));
         watch(shakeThreshold, v => localStorage.setItem('magic_shake_threshold', String(v)));
         watch(tiltForce, v => localStorage.setItem('magic_tilt_force', String(v)));
+        watch(tiltAccelMultiplier, v => localStorage.setItem('magic_tilt_accel_multiplier', String(v)));
+        watch(friction, v => localStorage.setItem('magic_friction', String(v)));
+        watch(maxSpeed, v => localStorage.setItem('magic_max_speed', String(v)));
+        watch(dragDisappearRatio, v => localStorage.setItem('magic_drag_disappear_ratio', String(v)));
 
         // ---------- 感測器 ----------
         const sensorReady = ref(false);
@@ -620,9 +657,7 @@
         const secretTapCount = ref(0);
         let secretTapTimer = null;
 
-        const EDGE_MARGIN = 18;
-        const FRICTION = 0.985;
-        const MAX_SPEED = 18;
+        const SECRET_TAP_RESET_MS = 1100;
 
         const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
@@ -661,6 +696,12 @@
           velY.value = 0;
         };
 
+        const clampInsideStage = () => {
+          const bounds = getBounds();
+          posX.value = clamp(posX.value, bounds.minX, bounds.maxX);
+          posY.value = clamp(posY.value, bounds.minY, bounds.maxY);
+        };
+
         const hideObject = () => {
           isRevealed.value = false;
           velX.value = 0;
@@ -675,65 +716,74 @@
           if (navigator.vibrate) navigator.vibrate(40);
         };
 
-        const checkEdgeDisappear = () => {
+        const shouldDisappearByDrag = () => {
           const half = getHalfSize();
           const x = posX.value;
           const y = posY.value;
+          const w = window.innerWidth;
+          const h = window.innerHeight;
 
-          if (
-            x - half <= EDGE_MARGIN ||
-            y - half <= EDGE_MARGIN ||
-            window.innerWidth - (x + half) <= EDGE_MARGIN ||
-            window.innerHeight - (y + half) <= EDGE_MARGIN
-          ) {
-            hideObject();
-          }
+          const leftOutside = Math.max(0, half - x);
+          const rightOutside = Math.max(0, x + half - w);
+          const topOutside = Math.max(0, half - y);
+          const bottomOutside = Math.max(0, y + half - h);
+
+          const maxOutside = Math.max(leftOutside, rightOutside, topOutside, bottomOutside);
+
+          return maxOutside > objectSize.value * Number(dragDisappearRatio.value);
         };
 
-        // ---------- 動畫物理 ----------
+        // ---------- 動畫 ----------
         const animate = () => {
           if (step.value === 2 && isRevealed.value && !isDragging.value) {
             const bounds = getBounds();
 
-            // gamma 左右傾，beta 前後傾
-            const ax = clamp((gammaValue / 45) * Number(tiltForce.value), -2.5, 2.5);
-            const ay = clamp((betaValue / 45) * Number(tiltForce.value), -2.5, 2.5);
+            const ax = clamp(
+              (gammaValue / 45) * Number(tiltForce.value) * Number(tiltAccelMultiplier.value),
+              -5,
+              5
+            );
+            const ay = clamp(
+              (betaValue / 45) * Number(tiltForce.value) * Number(tiltAccelMultiplier.value),
+              -5,
+              5
+            );
 
             velX.value += ax;
             velY.value += ay;
 
-            velX.value *= FRICTION;
-            velY.value *= FRICTION;
+            velX.value *= Number(friction.value);
+            velY.value *= Number(friction.value);
 
-            velX.value = clamp(velX.value, -MAX_SPEED, MAX_SPEED);
-            velY.value = clamp(velY.value, -MAX_SPEED, MAX_SPEED);
+            const maxS = Number(maxSpeed.value);
+            velX.value = clamp(velX.value, -maxS, maxS);
+            velY.value = clamp(velY.value, -maxS, maxS);
 
             posX.value += velX.value;
             posY.value += velY.value;
 
+            // 傾斜移動：只撞邊停住，不會消失
             if (posX.value <= bounds.minX) {
               posX.value = bounds.minX;
-              velX.value = 0;
+              if (velX.value < 0) velX.value = 0;
             } else if (posX.value >= bounds.maxX) {
               posX.value = bounds.maxX;
-              velX.value = 0;
+              if (velX.value > 0) velX.value = 0;
             }
 
             if (posY.value <= bounds.minY) {
               posY.value = bounds.minY;
-              velY.value = 0;
+              if (velY.value < 0) velY.value = 0;
             } else if (posY.value >= bounds.maxY) {
               posY.value = bounds.maxY;
-              velY.value = 0;
+              if (velY.value > 0) velY.value = 0;
             }
-
-            checkEdgeDisappear();
           }
 
           animationId = requestAnimationFrame(animate);
         };
 
-        // ---------- 圖片壓縮 ----------
+        // ---------- 圖片處理 ----------
         const compressBackground = (file, maxWidth = 1400, quality = 0.84) => {
           return new Promise((resolve, reject) => {
             const reader = new FileReader();
@@ -967,14 +1017,12 @@
           if (!isDragging.value || e.pointerId !== dragPointerId) return;
           e.preventDefault();
 
-          const bounds = getBounds();
-          posX.value = clamp(e.clientX - dragOffsetX, bounds.minX, bounds.maxX);
-          posY.value = clamp(e.clientY - dragOffsetY, bounds.minY, bounds.maxY);
+          // 拖曳時允許超出螢幕
+          posX.value = e.clientX - dragOffsetX;
+          posY.value = e.clientY - dragOffsetY;
 
           velX.value = 0;
           velY.value = 0;
-
-          checkEdgeDisappear();
         };
 
         const endDrag = (e) => {
@@ -987,14 +1035,19 @@
           window.removeEventListener('pointerup', endDrag);
           window.removeEventListener('pointercancel', endDrag);
 
-          checkEdgeDisappear();
+          if (shouldDisappearByDrag()) {
+            hideObject();
+            return;
+          }
+
+          clampInsideStage();
         };
 
         const onStagePointerDown = (e) => {
           e.preventDefault();
         };
 
-        // ---------- 秘密返回：三下 ----------
+        // ---------- 三連點返回 ----------
         const onSecretExitTap = (e) => {
           e.preventDefault();
           e.stopPropagation();
@@ -1005,7 +1058,7 @@
             clearTimeout(secretTapTimer);
             secretTapTimer = setTimeout(() => {
               secretTapCount.value = 0;
-            }, 1100);
+            }, SECRET_TAP_RESET_MS);
           }
 
           if (secretTapCount.value >= 3) {
@@ -1018,10 +1071,7 @@
         };
 
         const handleResize = () => {
-          const bounds = getBounds();
-          posX.value = clamp(posX.value, bounds.minX, bounds.maxX);
-          posY.value = clamp(posY.value, bounds.minY, bounds.maxY);
-          checkEdgeDisappear();
+          clampInsideStage();
         };
 
         const preventDoubleTapZoom = (e) => {
@@ -1066,6 +1116,10 @@
           objectSize,
           shakeThreshold,
           tiltForce,
+          tiltAccelMultiplier,
+          friction,
+          maxSpeed,
+          dragDisappearRatio,
           isRevealed,
           objectStyle,
           requestPermissions,
