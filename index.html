@@ -428,7 +428,7 @@
             <div class="label">旋轉強度</div>
             <div class="value">{{ rotationFactor.toFixed(2) }}</div>
           </div>
-          <input type="range" min="0.2" max="4.0" step="0.05" v-model="rotationFactor" />
+          <input type="range" min="0" max="0.6" step="0.01" v-model="rotationFactor" />
         </div>
 
         <div class="group">
@@ -436,7 +436,7 @@
             <div class="label">旋轉阻尼</div>
             <div class="value">{{ angularFriction.toFixed(3) }}</div>
           </div>
-          <input type="range" min="0.920" max="0.999" step="0.001" v-model="angularFriction" />
+          <input type="range" min="0.88" max="0.98" step="0.001" v-model="angularFriction" />
         </div>
 
         <div class="group">
@@ -444,7 +444,7 @@
             <div class="label">碰壁反彈</div>
             <div class="value">{{ bounceFactor.toFixed(2) }}</div>
           </div>
-          <input type="range" min="0.00" max="0.50" step="0.01" v-model="bounceFactor" />
+          <input type="range" min="0.00" max="0.12" step="0.005" v-model="bounceFactor" />
         </div>
 
         <div class="group">
@@ -452,7 +452,7 @@
             <div class="label">碰壁旋轉加成</div>
             <div class="value">{{ wallSpinBoost.toFixed(1) }}</div>
           </div>
-          <input type="range" min="0" max="40" step="1" v-model="wallSpinBoost" />
+          <input type="range" min="0" max="6" step="0.1" v-model="wallSpinBoost" />
         </div>
 
         <div class="group">
@@ -637,10 +637,10 @@
         const maxSpeed = ref(Number(localStorage.getItem('magic_max_speed')) || 36);
         const dragDisappearRatio = ref(Number(localStorage.getItem('magic_drag_disappear_ratio')) || 0.38);
 
-        const rotationFactor = ref(Number(localStorage.getItem('magic_rotation_factor')) || 1.4);
-        const angularFriction = ref(Number(localStorage.getItem('magic_angular_friction')) || 0.985);
-        const bounceFactor = ref(Number(localStorage.getItem('magic_bounce_factor')) || 0.12);
-        const wallSpinBoost = ref(Number(localStorage.getItem('magic_wall_spin_boost')) || 12);
+        const rotationFactor = ref(Number(localStorage.getItem('magic_rotation_factor')) || 0.18);
+        const angularFriction = ref(Number(localStorage.getItem('magic_angular_friction')) || 0.94);
+        const bounceFactor = ref(Number(localStorage.getItem('magic_bounce_factor')) || 0.06);
+        const wallSpinBoost = ref(Number(localStorage.getItem('magic_wall_spin_boost')) || 2.2);
 
         watch(objectSize, v => localStorage.setItem('magic_object_size', String(v)));
         watch(shakeThreshold, v => localStorage.setItem('magic_shake_threshold', String(v)));
@@ -773,17 +773,23 @@
         };
 
         const addSpinFromVelocity = () => {
+          // 平常移動幾乎不自轉，只保留非常小的感覺
           const speed = Math.hypot(velX.value, velY.value);
+          if (speed < 6) return;
+        
           const direction = velX.value >= 0 ? 1 : -1;
-          angularVelocity.value += speed * Number(rotationFactor.value) * 0.12 * direction;
+          angularVelocity.value += speed * Number(rotationFactor.value) * 0.003 * direction;
         };
 
         const addWallSpin = (axis, incomingVelocity) => {
+          const speed = Math.abs(incomingVelocity);
+          if (speed < 2) return;
+        
           const sign = axis === 'x'
             ? (incomingVelocity >= 0 ? 1 : -1)
             : (incomingVelocity >= 0 ? -1 : 1);
-
-          angularVelocity.value += sign * Number(wallSpinBoost.value);
+        
+          angularVelocity.value += sign * Math.min(speed * 0.08, Number(wallSpinBoost.value));
         };
 
         const animate = () => {
@@ -839,7 +845,7 @@
               velY.value = -incoming * Number(bounceFactor.value);
               addWallSpin('y', incoming);
             }
-
+            angularVelocity.value = clamp(angularVelocity.value, -4, 4);
             angle.value += angularVelocity.value;
             angularVelocity.value *= Number(angularFriction.value);
           } else if (step.value === 2 && isRevealed.value && isDragging.value) {
@@ -1094,7 +1100,7 @@
           velX.value = dx / (dt / 16.67);
           velY.value = dy / (dt / 16.67);
 
-          angularVelocity.value += (dx * 0.25) * Number(rotationFactor.value);
+          angularVelocity.value += (dx * 0.015) * Number(rotationFactor.value);
 
           lastDragX = e.clientX;
           lastDragY = e.clientY;
