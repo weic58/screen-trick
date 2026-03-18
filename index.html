@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Magic Trick Setup</title>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <style>
+    body, html { margin: 0; padding: 0; width: 100vw; height: 100vh; overflow: hidden; background-color: #000; font-family: sans-serif; }
+    #app { width: 100%; height: 100%; position: relative; }
+    
+    /* 步驟一：解鎖畫面（用來騙取 iOS 感測器權限） */
+    .unlock-screen { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: #222; z-index: 100; }
+    .unlock-btn { padding: 15px 30px; font-size: 20px; border-radius: 10px; border: none; background: #fff; cursor: pointer; }
+
+    /* 步驟二：暗中設定區 */
+    .setup-screen { position: absolute; inset: 0; background: #333; color: white; padding: 20px; z-index: 50; display: flex; flex-direction: column; gap: 20px; }
+    
+    /* 步驟三：魔術主畫面 */
+    .magic-screen { position: absolute; inset: 0; background-size: cover; background-position: center; z-index: 10; }
+    
+    /* 隱藏觸發區（左上角）與上傳按鈕 */
+    .hidden-trigger { position: absolute; top: 0; left: 0; width: 80px; height: 80px; z-index: 20; opacity: 0; }
+    input[type="file"] { display: none; }
+
+    /* 魔術物件（硬幣/撲克牌） */
+    .magic-object {
+      position: absolute;
+      width: 100px; /* 可依需求調整大小 */
+      height: auto;
+      transition: opacity 0.3s ease;
+      /* 讓中心點對齊座標 */
+      transform: translate(-50%, -50%); 
+      will-change: left, top;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div v-if="step === 0" class="unlock-screen">
+      <button class="unlock-btn" @click="requestPermissions">Start</button>
+    </div>
+
+    <div v-if="step === 1" class="setup-screen">
+      <h3>Setup Phase</h3>
+      <label>1. 上傳桌面截圖 (Background):
+        <input type="file" style="display:block" @change="onBgUpload" accept="image/*">
+      </label>
+      <label>2. 上傳撲克牌/硬幣 (Object):
+        <input type="file" style="display:block" @change="onObjUpload" accept="image/*">
+      </label>
+      <button class="unlock-btn" v-if="bgImage && objImage" @click="enterMagicMode">進入魔術模式</button>
+    </div>
+
+    <div v-if="step === 2" class="magic-screen" :style="{ backgroundImage: `url(${bgImage})` }">
+      <div class="hidden-trigger" @click="resetMagic"></div>
+
+      <img 
+        v-if="objImage" 
+        :src="objImage" 
+        class="magic-object"
+        :style="{ 
+          opacity: isRevealed ? 1 : 0, 
+          left: objX + 'px', 
+          top: objY + 'px',
+          pointerEvents: isRevealed ? 'auto' : 'none'
+        }"
+        @touchstart="onTouchStart"
+        @touchmove="onTouchMove"
+        @touchend="onTouchEnd"
+      />
+    </div>
+  </div>
+
+  <script>
+    const { createApp, ref, onMounted } = Vue;
+
+    createApp({
+      setup() {
+        const step = ref(0);
+        const bgImage = ref('');
+        const objImage = ref('');
+        
+        // 物件狀態
+        const isRevealed = ref(false);
+        const objX = ref(window.innerWidth / 2);
+        const objY = ref(window.innerHeight / 2);
+        const isDragging = ref(false);
+
+        // 搖晃偵測相關變數
+        const shakeThreshold = 15; // 搖晃力道閾值，可微調
+        let lastX = null, lastY = null, lastZ = null;
+
+        // 步驟 1：要求 iOS 感測器權限
+        const requestPermissions = async () => {
+          if (typeof DeviceMotionEvent.requestPermission === 'function') {
+            try {
+              const permissionState = await DeviceMotionEvent.requestPermission();
+              if (permissionState === 'granted') {
+                step.value = 1;
+              } else {
+                alert('需要感測器權限才能變魔術喔！');
+              }
+            } catch (error) {
+              console.error(error);
+            }
+          } else {
+            // 非 iOS 13+ 設備，直接進入下一步
+            step.value = 1;
+          }
+        };
+
+        // 圖片上傳處理 (轉為 Base64 預覽)
+        const handleImageUpload = (e, targetRef) => {
+          const file = e.target.files[0];
+          if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => targetRef.value = e.target.result;
+            reader.readAsDataURL(file);
+          }
+        };
+        const onBgUpload = (e) => handleImageUpload(e, bgImage);
+        const onObjUpload = (e) => handleImageUpload(e, objImage);
+
+        // 步驟 2：進入魔術模式並啟動監聽
+        const enterMagicMode = () => {
+          step.value = 2;
+          isRevealed.value = false;
+          objX.value = window.innerWidth / 2;
+          objY.value = window.innerHeight / 2;
+          window.addEventListener('devicemotion', handleMotion);
+          window.addEventListener('deviceorientation', handleOrientation);
+        };
+
+        // 搖晃偵測 (Device Motion)
+        const handleMotion = (e) => {
+          if (isRevealed.value || !e.accelerationIncludingGravity) return;
+          const { x, y, z } = e.accelerationIncludingGravity;
+          if (lastX === null) { lastX = x; lastY = y; lastZ = z; return; }
+
+          const deltaX = Math.abs(lastX - x);
+          const deltaY = Math.abs(lastY - y);
+          const deltaZ = Math.abs(lastZ - z);
+
+          if (deltaX + deltaY + deltaZ > shakeThreshold) {
+            // 觸發出現！
+            isRevealed.value = true;
+            // 讓物件從畫面正中央出現
+            objX.value = window.innerWidth / 2;
+            objY.value = window.innerHeight / 2;
+          }
+          lastX = x; lastY = y; lastZ = z;
+        };
+
+        // 陀螺儀滑動 (Device Orientation)
+        const handleOrientation = (e) => {
+          if (!isRevealed.value || isDragging.value) return;
+          // 這裡做一個簡單的阻尼偏移，Gamma 是左右，Beta 是前後
+          // 實際魔術可能需要更複雜的物理碰撞計算，這裡先做基礎跟隨
+          const speed = 1.5;
+          objX.value += e.gamma * speed;
+          objY.value += (e.beta - 30) * speed; // 減 30 是為了抵消手持手機自然的傾斜角
+        };
+
+        // 拖曳處理 (Touch Events)
+        const onTouchStart = (e) => { isDragging.value = true; };
+        const onTouchMove = (e) => {
+          if (!isDragging.value) return;
+          e.preventDefault(); // 防止滑動到系統上一頁
+          const touch = e.touches[0];
+          objX.value = touch.clientX;
+          objY.value = touch.clientY;
+        };
+        const onTouchEnd = (e) => {
+          isDragging.value = false;
+          // 這裡可以加入判斷：如果座標太靠近螢幕邊緣，就把 isRevealed 設為 false (丟出去了)
+          if (objX.value < 0 || objX.value > window.innerWidth || objY.value < 0 || objY.value > window.innerHeight) {
+            isRevealed.value = false;
+          }
+        };
+
+        // 點擊左上角隱形區塊重置
+        const resetMagic = () => {
+          isRevealed.value = false;
+        };
+
+        return {
+          step, bgImage, objImage, isRevealed, objX, objY,
+          requestPermissions, onBgUpload, onObjUpload, enterMagicMode,
+          onTouchStart, onTouchMove, onTouchEnd, resetMagic
+        };
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>
