@@ -6,7 +6,7 @@
     name="viewport"
     content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
   />
-  <title>Magic Coin Pro Final</title>
+  <title>Magic Coin Pro Rotating</title>
   <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
   <style>
     :root {
@@ -112,7 +112,7 @@
     .value {
       font-size: 13px;
       color: var(--muted);
-      min-width: 80px;
+      min-width: 90px;
       text-align: right;
     }
 
@@ -268,12 +268,11 @@
     .magic-object {
       position: absolute;
       z-index: 3;
-      transform: translate(-50%, -50%);
       transform-origin: center center;
       will-change: left, top, transform, opacity;
       pointer-events: auto;
       opacity: 0;
-      transition: opacity 140ms ease, transform 140ms ease;
+      transition: opacity 140ms ease;
       backface-visibility: hidden;
       -webkit-backface-visibility: hidden;
       touch-action: none;
@@ -283,12 +282,10 @@
 
     .magic-object.revealed {
       opacity: 1;
-      transform: translate(-50%, -50%) scale(1);
     }
 
     .magic-object.hidden {
       opacity: 0;
-      transform: translate(-50%, -50%) scale(0.95);
       pointer-events: none;
     }
 
@@ -306,21 +303,19 @@
 </head>
 <body>
   <div id="app">
-    <!-- Step 0 -->
     <div v-if="step === 0" class="screen center-screen">
       <div class="panel">
-        <h1>🪄 Magic Coin Pro Final</h1>
+        <h1>🪄 Magic Coin Pro Rotating</h1>
         <p>先允許感測器權限，再進入設定。</p>
         <button class="btn" @click="requestPermissions">開始</button>
         <div class="status">{{ sensorStatus }}</div>
       </div>
     </div>
 
-    <!-- Step 1 -->
     <div v-if="step === 1" class="screen center-screen" style="align-items: flex-start;">
       <div class="panel">
         <h2>⚙️ 魔術設定</h2>
-        <p>這版會記住多個背景與物件，且滑動速度、摩擦力等都可用拉桿調整。</p>
+        <p>這版加入旋轉、碰壁反應、可調整轉速與反彈感。</p>
 
         <div class="group">
           <h3>🖼️ 背景素材</h3>
@@ -426,7 +421,38 @@
             <div class="value">{{ dragDisappearRatio.toFixed(2) }}</div>
           </div>
           <input type="range" min="0.1" max="0.8" step="0.01" v-model="dragDisappearRatio" />
-          <p class="footer-note">數值越小，拖出去一點點就會消失；越大要拖更出去才會消失。</p>
+        </div>
+
+        <div class="group">
+          <div class="row">
+            <div class="label">旋轉強度</div>
+            <div class="value">{{ rotationFactor.toFixed(2) }}</div>
+          </div>
+          <input type="range" min="0.2" max="4.0" step="0.05" v-model="rotationFactor" />
+        </div>
+
+        <div class="group">
+          <div class="row">
+            <div class="label">旋轉阻尼</div>
+            <div class="value">{{ angularFriction.toFixed(3) }}</div>
+          </div>
+          <input type="range" min="0.920" max="0.999" step="0.001" v-model="angularFriction" />
+        </div>
+
+        <div class="group">
+          <div class="row">
+            <div class="label">碰壁反彈</div>
+            <div class="value">{{ bounceFactor.toFixed(2) }}</div>
+          </div>
+          <input type="range" min="0.00" max="0.50" step="0.01" v-model="bounceFactor" />
+        </div>
+
+        <div class="group">
+          <div class="row">
+            <div class="label">碰壁旋轉加成</div>
+            <div class="value">{{ wallSpinBoost.toFixed(1) }}</div>
+          </div>
+          <input type="range" min="0" max="40" step="1" v-model="wallSpinBoost" />
         </div>
 
         <div class="group">
@@ -444,12 +470,11 @@
 
         <p class="footer-note">
           左上角 1.1 秒內點 3 下回設定頁。<br>
-          傾斜移動只會撞牆停住；只有手指拖出邊界才會消失。
+          傾斜只會撞牆停住或微反彈；只有拖曳出界才會消失。
         </p>
       </div>
     </div>
 
-    <!-- Step 2 -->
     <div
       v-if="step === 2"
       class="screen magic-screen"
@@ -479,7 +504,6 @@
       setup() {
         const step = ref(0);
 
-        // ---------- IndexedDB ----------
         const DB_NAME = 'magicCoinDB';
         const STORE_NAME = 'assets';
         let db = null;
@@ -605,7 +629,6 @@
           }
         };
 
-        // ---------- 可調參數 ----------
         const objectSize = ref(Number(localStorage.getItem('magic_object_size')) || 150);
         const shakeThreshold = ref(Number(localStorage.getItem('magic_shake_threshold')) || 3.5);
         const tiltForce = ref(Number(localStorage.getItem('magic_tilt_force')) || 1.25);
@@ -614,6 +637,11 @@
         const maxSpeed = ref(Number(localStorage.getItem('magic_max_speed')) || 36);
         const dragDisappearRatio = ref(Number(localStorage.getItem('magic_drag_disappear_ratio')) || 0.38);
 
+        const rotationFactor = ref(Number(localStorage.getItem('magic_rotation_factor')) || 1.4);
+        const angularFriction = ref(Number(localStorage.getItem('magic_angular_friction')) || 0.985);
+        const bounceFactor = ref(Number(localStorage.getItem('magic_bounce_factor')) || 0.12);
+        const wallSpinBoost = ref(Number(localStorage.getItem('magic_wall_spin_boost')) || 12);
+
         watch(objectSize, v => localStorage.setItem('magic_object_size', String(v)));
         watch(shakeThreshold, v => localStorage.setItem('magic_shake_threshold', String(v)));
         watch(tiltForce, v => localStorage.setItem('magic_tilt_force', String(v)));
@@ -621,8 +649,11 @@
         watch(friction, v => localStorage.setItem('magic_friction', String(v)));
         watch(maxSpeed, v => localStorage.setItem('magic_max_speed', String(v)));
         watch(dragDisappearRatio, v => localStorage.setItem('magic_drag_disappear_ratio', String(v)));
+        watch(rotationFactor, v => localStorage.setItem('magic_rotation_factor', String(v)));
+        watch(angularFriction, v => localStorage.setItem('magic_angular_friction', String(v)));
+        watch(bounceFactor, v => localStorage.setItem('magic_bounce_factor', String(v)));
+        watch(wallSpinBoost, v => localStorage.setItem('magic_wall_spin_boost', String(v)));
 
-        // ---------- 感測器 ----------
         const sensorReady = ref(false);
         const sensorStatus = ref('尚未啟動感測器');
 
@@ -632,7 +663,6 @@
         let orientationCount = 0;
         let sensorTestTimer = null;
 
-        // ---------- 物件狀態 ----------
         const isRevealed = ref(false);
 
         const posX = ref(window.innerWidth / 2);
@@ -640,23 +670,26 @@
         const velX = ref(0);
         const velY = ref(0);
 
+        const angle = ref(0);
+        const angularVelocity = ref(0);
+
         const isDragging = ref(false);
         let dragPointerId = null;
         let dragOffsetX = 0;
         let dragOffsetY = 0;
+        let lastDragX = 0;
+        let lastDragY = 0;
+        let lastDragTime = 0;
 
         let betaValue = 0;
         let gammaValue = 0;
 
         let lastMagnitude = 0;
         let lastShakeTime = 0;
-
         let animationId = null;
 
-        // ---------- 秘密手勢 ----------
         const secretTapCount = ref(0);
         let secretTapTimer = null;
-
         const SECRET_TAP_RESET_MS = 1100;
 
         const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
@@ -673,11 +706,15 @@
           };
         };
 
-        const objectStyle = computed(() => ({
-          width: objectSize.value + 'px',
-          left: posX.value + 'px',
-          top: posY.value + 'px'
-        }));
+        const objectStyle = computed(() => {
+          const hiddenScale = isRevealed.value ? 1 : 0.95;
+          return {
+            width: objectSize.value + 'px',
+            left: posX.value + 'px',
+            top: posY.value + 'px',
+            transform: `translate(-50%, -50%) scale(${hiddenScale}) rotate(${angle.value.toFixed(2)}deg)`
+          };
+        });
 
         const formatTime = (ts) => {
           const d = new Date(ts);
@@ -694,6 +731,8 @@
           posY.value = window.innerHeight / 2;
           velX.value = 0;
           velY.value = 0;
+          angle.value = 0;
+          angularVelocity.value = 0;
         };
 
         const clampInsideStage = () => {
@@ -706,6 +745,7 @@
           isRevealed.value = false;
           velX.value = 0;
           velY.value = 0;
+          angularVelocity.value = 0;
           isDragging.value = false;
           dragPointerId = null;
         };
@@ -729,11 +769,23 @@
           const bottomOutside = Math.max(0, y + half - h);
 
           const maxOutside = Math.max(leftOutside, rightOutside, topOutside, bottomOutside);
-
           return maxOutside > objectSize.value * Number(dragDisappearRatio.value);
         };
 
-        // ---------- 動畫 ----------
+        const addSpinFromVelocity = () => {
+          const speed = Math.hypot(velX.value, velY.value);
+          const direction = velX.value >= 0 ? 1 : -1;
+          angularVelocity.value += speed * Number(rotationFactor.value) * 0.12 * direction;
+        };
+
+        const addWallSpin = (axis, incomingVelocity) => {
+          const sign = axis === 'x'
+            ? (incomingVelocity >= 0 ? 1 : -1)
+            : (incomingVelocity >= 0 ? -1 : 1);
+
+          angularVelocity.value += sign * Number(wallSpinBoost.value);
+        };
+
         const animate = () => {
           if (step.value === 2 && isRevealed.value && !isDragging.value) {
             const bounds = getBounds();
@@ -759,31 +811,45 @@
             velX.value = clamp(velX.value, -maxS, maxS);
             velY.value = clamp(velY.value, -maxS, maxS);
 
+            addSpinFromVelocity();
+
             posX.value += velX.value;
             posY.value += velY.value;
 
-            // 傾斜移動：只撞邊停住，不會消失
             if (posX.value <= bounds.minX) {
+              const incoming = velX.value;
               posX.value = bounds.minX;
-              if (velX.value < 0) velX.value = 0;
+              velX.value = -incoming * Number(bounceFactor.value);
+              addWallSpin('x', incoming);
             } else if (posX.value >= bounds.maxX) {
+              const incoming = velX.value;
               posX.value = bounds.maxX;
-              if (velX.value > 0) velX.value = 0;
+              velX.value = -incoming * Number(bounceFactor.value);
+              addWallSpin('x', incoming);
             }
 
             if (posY.value <= bounds.minY) {
+              const incoming = velY.value;
               posY.value = bounds.minY;
-              if (velY.value < 0) velY.value = 0;
+              velY.value = -incoming * Number(bounceFactor.value);
+              addWallSpin('y', incoming);
             } else if (posY.value >= bounds.maxY) {
+              const incoming = velY.value;
               posY.value = bounds.maxY;
-              if (velY.value > 0) velY.value = 0;
+              velY.value = -incoming * Number(bounceFactor.value);
+              addWallSpin('y', incoming);
             }
+
+            angle.value += angularVelocity.value;
+            angularVelocity.value *= Number(angularFriction.value);
+          } else if (step.value === 2 && isRevealed.value && isDragging.value) {
+            angle.value += angularVelocity.value;
+            angularVelocity.value *= Number(angularFriction.value);
           }
 
           animationId = requestAnimationFrame(animate);
         };
 
-        // ---------- 圖片處理 ----------
         const compressBackground = (file, maxWidth = 1400, quality = 0.84) => {
           return new Promise((resolve, reject) => {
             const reader = new FileReader();
@@ -868,7 +934,6 @@
           }
         };
 
-        // ---------- 感測器 ----------
         const handleMotion = (e) => {
           motionCount++;
 
@@ -981,7 +1046,6 @@
           }
         };
 
-        // ---------- 表演 ----------
         const enterMagicMode = () => {
           if (!currentBg.value || !currentObj.value) return;
           step.value = 2;
@@ -992,7 +1056,6 @@
           startSensors();
         };
 
-        // ---------- 拖曳 ----------
         const startDrag = (e) => {
           if (!isRevealed.value) return;
 
@@ -1003,6 +1066,9 @@
           dragPointerId = e.pointerId;
           dragOffsetX = e.clientX - posX.value;
           dragOffsetY = e.clientY - posY.value;
+          lastDragX = e.clientX;
+          lastDragY = e.clientY;
+          lastDragTime = performance.now();
 
           if (e.target.setPointerCapture) {
             e.target.setPointerCapture(e.pointerId);
@@ -1017,12 +1083,22 @@
           if (!isDragging.value || e.pointerId !== dragPointerId) return;
           e.preventDefault();
 
-          // 拖曳時允許超出螢幕
           posX.value = e.clientX - dragOffsetX;
           posY.value = e.clientY - dragOffsetY;
 
-          velX.value = 0;
-          velY.value = 0;
+          const now = performance.now();
+          const dt = Math.max(1, now - lastDragTime);
+          const dx = e.clientX - lastDragX;
+          const dy = e.clientY - lastDragY;
+
+          velX.value = dx / (dt / 16.67);
+          velY.value = dy / (dt / 16.67);
+
+          angularVelocity.value += (dx * 0.25) * Number(rotationFactor.value);
+
+          lastDragX = e.clientX;
+          lastDragY = e.clientY;
+          lastDragTime = now;
         };
 
         const endDrag = (e) => {
@@ -1047,7 +1123,6 @@
           e.preventDefault();
         };
 
-        // ---------- 三連點返回 ----------
         const onSecretExitTap = (e) => {
           e.preventDefault();
           e.stopPropagation();
@@ -1120,6 +1195,10 @@
           friction,
           maxSpeed,
           dragDisappearRatio,
+          rotationFactor,
+          angularFriction,
+          bounceFactor,
+          wallSpinBoost,
           isRevealed,
           objectStyle,
           requestPermissions,
