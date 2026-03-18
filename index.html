@@ -6,7 +6,7 @@
     name="viewport"
     content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
   />
-  <title>Magic Coin Pro</title>
+  <title>Magic Coin Pro+</title>
   <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
   <style>
     :root {
@@ -15,6 +15,8 @@
       --text: #f5f5f5;
       --muted: #b8b8b8;
       --accent: #4da6ff;
+      --danger: #ff6b6b;
+      --ok: #67d98b;
     }
 
     * {
@@ -60,17 +62,19 @@
     }
 
     .panel {
-      width: min(92vw, 460px);
+      width: min(94vw, 520px);
+      max-height: 92vh;
+      overflow-y: auto;
       background: var(--panel-bg);
       color: var(--text);
       border-radius: 22px;
-      padding: 20px;
+      padding: 18px;
       box-shadow: 0 12px 40px rgba(0,0,0,0.35);
       backdrop-filter: blur(10px);
     }
 
-    .panel h1, .panel h2 {
-      margin: 0 0 14px;
+    .panel h1, .panel h2, .panel h3 {
+      margin: 0 0 12px;
       font-weight: 700;
     }
 
@@ -82,7 +86,7 @@
     }
 
     .group {
-      margin-top: 16px;
+      margin-top: 14px;
       background: var(--card-bg);
       border-radius: 16px;
       padding: 14px;
@@ -93,7 +97,7 @@
       align-items: center;
       justify-content: space-between;
       gap: 12px;
-      margin-top: 12px;
+      margin-top: 10px;
     }
 
     .row:first-child {
@@ -109,7 +113,7 @@
     .value {
       font-size: 13px;
       color: var(--muted);
-      min-width: 76px;
+      min-width: 70px;
       text-align: right;
     }
 
@@ -129,17 +133,30 @@
       border: none;
       border-radius: 16px;
       padding: 14px 16px;
-      font-size: 17px;
+      font-size: 16px;
       font-weight: 700;
       cursor: pointer;
       color: #fff;
       background: linear-gradient(180deg, #5db0ff 0%, #2e8df5 100%);
-      margin-top: 14px;
+      margin-top: 12px;
     }
 
     .btn.secondary {
       background: rgba(255,255,255,0.08);
       color: #fff;
+    }
+
+    .btn.danger {
+      background: rgba(255,107,107,0.18);
+      color: #ffd9d9;
+    }
+
+    .btn.small {
+      width: auto;
+      margin-top: 0;
+      padding: 8px 10px;
+      font-size: 13px;
+      border-radius: 10px;
     }
 
     .btn:disabled {
@@ -160,6 +177,75 @@
       font-size: 12px;
       color: #9fb4c7;
       line-height: 1.5;
+    }
+
+    .asset-list {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .asset-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 14px;
+      padding: 10px;
+      border: 1px solid transparent;
+    }
+
+    .asset-item.active {
+      border-color: rgba(77,166,255,0.8);
+      box-shadow: 0 0 0 1px rgba(77,166,255,0.15) inset;
+    }
+
+    .thumb {
+      width: 64px;
+      height: 64px;
+      border-radius: 10px;
+      object-fit: cover;
+      background: rgba(255,255,255,0.08);
+      flex: 0 0 auto;
+    }
+
+    .thumb.object-thumb {
+      object-fit: contain;
+      background:
+        linear-gradient(45deg, #2a2a2a 25%, #1e1e1e 25%, #1e1e1e 50%, #2a2a2a 50%, #2a2a2a 75%, #1e1e1e 75%, #1e1e1e 100%);
+      background-size: 16px 16px;
+    }
+
+    .asset-meta {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .asset-name {
+      font-size: 14px;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .asset-sub {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    .asset-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .empty-note {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 8px;
     }
 
     .magic-screen {
@@ -221,30 +307,70 @@
 </head>
 <body>
   <div id="app">
-    <!-- Step 0 -->
+    <!-- 啟動 -->
     <div v-if="step === 0" class="screen center-screen">
       <div class="panel">
-        <h1>🪄 Magic Coin Pro</h1>
-        <p>先允許動作與方向感測器權限，再進入設定。</p>
+        <h1>🪄 Magic Coin Pro+</h1>
+        <p>先允許感測器權限，再進入素材設定。</p>
         <button class="btn" @click="requestPermissions">開始</button>
         <div class="status">{{ sensorStatus }}</div>
       </div>
     </div>
 
-    <!-- Step 1 -->
-    <div v-if="step === 1" class="screen center-screen" style="align-items: flex-start; overflow-y: auto; padding-top: 20px; padding-bottom: 28px;">
+    <!-- 設定 -->
+    <div v-if="step === 1" class="screen center-screen" style="align-items: flex-start; padding-top: 16px; padding-bottom: 16px;">
       <div class="panel">
         <h2>⚙️ 魔術設定</h2>
-        <p>背景圖可用 JPG；硬幣圖建議一定要用透明 PNG。</p>
+        <p>現在會記住多個背景與多個物件，可以選擇、切換、刪除。</p>
 
         <div class="group">
-          <div class="label">1. 上傳背景圖</div>
-          <input type="file" accept="image/*" @change="(e) => handleImageUpload(e, 'bg')" />
+          <h3>🖼️ 背景素材</h3>
+          <input type="file" accept="image/*" @change="(e) => addAsset(e, 'bg')" />
+          <div class="empty-note" v-if="backgrounds.length === 0">尚未上傳背景</div>
+
+          <div class="asset-list" v-else>
+            <div
+              v-for="item in backgrounds"
+              :key="item.id"
+              class="asset-item"
+              :class="{ active: selectedBgId === item.id }"
+            >
+              <img class="thumb" :src="item.dataUrl" alt="" />
+              <div class="asset-meta">
+                <div class="asset-name">{{ item.name }}</div>
+                <div class="asset-sub">{{ formatTime(item.createdAt) }}</div>
+              </div>
+              <div class="asset-actions">
+                <button class="btn secondary small" @click="selectAsset('bg', item.id)">選擇</button>
+                <button class="btn danger small" @click="deleteAsset('bg', item.id)">刪除</button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="group">
-          <div class="label">2. 上傳硬幣 / 物件圖（透明 PNG 建議）</div>
-          <input type="file" accept="image/png,image/webp,image/*" @change="(e) => handleImageUpload(e, 'obj')" />
+          <h3>🪙 物件素材</h3>
+          <input type="file" accept="image/png,image/webp,image/*" @change="(e) => addAsset(e, 'obj')" />
+          <div class="empty-note" v-if="objects.length === 0">尚未上傳物件</div>
+
+          <div class="asset-list" v-else>
+            <div
+              v-for="item in objects"
+              :key="item.id"
+              class="asset-item"
+              :class="{ active: selectedObjId === item.id }"
+            >
+              <img class="thumb object-thumb" :src="item.dataUrl" alt="" />
+              <div class="asset-meta">
+                <div class="asset-name">{{ item.name }}</div>
+                <div class="asset-sub">{{ formatTime(item.createdAt) }}</div>
+              </div>
+              <div class="asset-actions">
+                <button class="btn secondary small" @click="selectAsset('obj', item.id)">選擇</button>
+                <button class="btn danger small" @click="deleteAsset('obj', item.id)">刪除</button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="group">
@@ -265,10 +391,10 @@
 
         <div class="group">
           <div class="row">
-            <div class="label">傾斜滑動靈敏度</div>
-            <div class="value">{{ tiltSensitivity.toFixed(1) }}</div>
+            <div class="label">傾斜推動靈敏度</div>
+            <div class="value">{{ tiltForce.toFixed(2) }}</div>
           </div>
-          <input type="range" min="1" max="18" step="0.5" v-model="tiltSensitivity" />
+          <input type="range" min="0.08" max="1.2" step="0.02" v-model="tiltForce" />
         </div>
 
         <div class="group">
@@ -280,30 +406,34 @@
           <button class="btn secondary" @click="testSensors">重新測試感測器</button>
         </div>
 
-        <button class="btn" :disabled="!bgImage || !objImage" @click="enterMagicMode">
+        <button
+          class="btn"
+          :disabled="!currentBg || !currentObj"
+          @click="enterMagicMode"
+        >
           進入表演模式
         </button>
 
         <p class="footer-note">
-          左上角快速點 4 下可回設定頁。<br>
-          硬幣拖到邊緣會消失，必須再晃一次才出現。
+          左上角 1.1 秒內點 3 下回設定頁。<br>
+          硬幣拖到邊緣會消失，必須再晃一次才重新出現。
         </p>
       </div>
     </div>
 
-    <!-- Step 2 -->
+    <!-- 表演 -->
     <div
       v-if="step === 2"
       class="screen magic-screen"
-      :style="{ backgroundImage: bgImage ? `url(${bgImage})` : 'none' }"
+      :style="{ backgroundImage: currentBg ? `url(${currentBg.dataUrl})` : 'none' }"
       @dblclick.prevent
     >
       <div class="gesture-layer" @pointerdown="onStagePointerDown"></div>
       <div class="secret-corner" @pointerdown="onSecretExitTap"></div>
 
       <img
-        v-if="objImage"
-        :src="objImage"
+        v-if="currentObj"
+        :src="currentObj.dataUrl"
         class="magic-object"
         :class="isRevealed ? 'revealed' : 'hidden'"
         :style="objectStyle"
@@ -321,47 +451,178 @@
       setup() {
         const step = ref(0);
 
-        // 資料
-        const bgImage = ref(localStorage.getItem('magic_bg') || '');
-        const objImage = ref(localStorage.getItem('magic_obj') || '');
+        // ---------- IndexedDB ----------
+        const DB_NAME = 'magicCoinDB';
+        const STORE_NAME = 'assets';
+        let db = null;
 
+        const backgrounds = ref([]);
+        const objects = ref([]);
+        const selectedBgId = ref(localStorage.getItem('magic_selected_bg') || '');
+        const selectedObjId = ref(localStorage.getItem('magic_selected_obj') || '');
+
+        const openDB = () => {
+          return new Promise((resolve, reject) => {
+            const request = indexedDB.open(DB_NAME, 1);
+
+            request.onupgradeneeded = (event) => {
+              const database = event.target.result;
+              if (!database.objectStoreNames.contains(STORE_NAME)) {
+                const store = database.createObjectStore(STORE_NAME, { keyPath: 'id' });
+                store.createIndex('type', 'type', { unique: false });
+                store.createIndex('createdAt', 'createdAt', { unique: false });
+              }
+            };
+
+            request.onsuccess = () => {
+              db = request.result;
+              resolve(db);
+            };
+
+            request.onerror = () => reject(request.error);
+          });
+        };
+
+        const getAllAssets = () => {
+          return new Promise((resolve, reject) => {
+            const tx = db.transaction(STORE_NAME, 'readonly');
+            const store = tx.objectStore(STORE_NAME);
+            const req = store.getAll();
+
+            req.onsuccess = () => resolve(req.result || []);
+            req.onerror = () => reject(req.error);
+          });
+        };
+
+        const saveAssetToDB = (asset) => {
+          return new Promise((resolve, reject) => {
+            const tx = db.transaction(STORE_NAME, 'readwrite');
+            const store = tx.objectStore(STORE_NAME);
+            const req = store.put(asset);
+
+            req.onsuccess = () => resolve();
+            req.onerror = () => reject(req.error);
+          });
+        };
+
+        const deleteAssetFromDB = (id) => {
+          return new Promise((resolve, reject) => {
+            const tx = db.transaction(STORE_NAME, 'readwrite');
+            const store = tx.objectStore(STORE_NAME);
+            const req = store.delete(id);
+
+            req.onsuccess = () => resolve();
+            req.onerror = () => reject(req.error);
+          });
+        };
+
+        const refreshAssets = async () => {
+          const all = await getAllAssets();
+          backgrounds.value = all
+            .filter(x => x.type === 'bg')
+            .sort((a, b) => b.createdAt - a.createdAt);
+
+          objects.value = all
+            .filter(x => x.type === 'obj')
+            .sort((a, b) => b.createdAt - a.createdAt);
+
+          if (selectedBgId.value && !backgrounds.value.some(x => x.id === selectedBgId.value)) {
+            selectedBgId.value = backgrounds.value[0]?.id || '';
+          }
+          if (selectedObjId.value && !objects.value.some(x => x.id === selectedObjId.value)) {
+            selectedObjId.value = objects.value[0]?.id || '';
+          }
+
+          if (!selectedBgId.value && backgrounds.value.length) {
+            selectedBgId.value = backgrounds.value[0].id;
+          }
+          if (!selectedObjId.value && objects.value.length) {
+            selectedObjId.value = objects.value[0].id;
+          }
+
+          localStorage.setItem('magic_selected_bg', selectedBgId.value || '');
+          localStorage.setItem('magic_selected_obj', selectedObjId.value || '');
+        };
+
+        const currentBg = computed(() =>
+          backgrounds.value.find(x => x.id === selectedBgId.value) || null
+        );
+
+        const currentObj = computed(() =>
+          objects.value.find(x => x.id === selectedObjId.value) || null
+        );
+
+        const selectAsset = (type, id) => {
+          if (type === 'bg') {
+            selectedBgId.value = id;
+            localStorage.setItem('magic_selected_bg', id);
+          } else {
+            selectedObjId.value = id;
+            localStorage.setItem('magic_selected_obj', id);
+          }
+        };
+
+        const deleteAsset = async (type, id) => {
+          await deleteAssetFromDB(id);
+          await refreshAssets();
+
+          if (type === 'bg' && selectedBgId.value === id) {
+            selectedBgId.value = backgrounds.value[0]?.id || '';
+            localStorage.setItem('magic_selected_bg', selectedBgId.value || '');
+          }
+          if (type === 'obj' && selectedObjId.value === id) {
+            selectedObjId.value = objects.value[0]?.id || '';
+            localStorage.setItem('magic_selected_obj', selectedObjId.value || '');
+          }
+        };
+
+        // ---------- 設定 ----------
         const objectSize = ref(Number(localStorage.getItem('magic_object_size')) || 150);
         const shakeThreshold = ref(Number(localStorage.getItem('magic_shake_threshold')) || 3.5);
-        const tiltSensitivity = ref(Number(localStorage.getItem('magic_tilt_sensitivity')) || 8);
+        const tiltForce = ref(Number(localStorage.getItem('magic_tilt_force')) || 0.35);
 
-        // 感測器
+        watch(objectSize, v => localStorage.setItem('magic_object_size', String(v)));
+        watch(shakeThreshold, v => localStorage.setItem('magic_shake_threshold', String(v)));
+        watch(tiltForce, v => localStorage.setItem('magic_tilt_force', String(v)));
+
+        // ---------- 感測器 ----------
         const sensorReady = ref(false);
         const sensorStatus = ref('尚未啟動感測器');
+
         let motionListening = false;
         let orientationListening = false;
         let motionCount = 0;
         let orientationCount = 0;
         let sensorTestTimer = null;
 
-        // 顯示狀態
+        // ---------- 物件狀態 ----------
         const isRevealed = ref(false);
 
-        // 物件位置
-        const baseX = ref(window.innerWidth / 2);
-        const baseY = ref(window.innerHeight / 2);
-        const tiltOffsetX = ref(0);
-        const tiltOffsetY = ref(0);
+        const posX = ref(window.innerWidth / 2);
+        const posY = ref(window.innerHeight / 2);
+        const velX = ref(0);
+        const velY = ref(0);
 
-        // drag
         const isDragging = ref(false);
         let dragPointerId = null;
         let dragOffsetX = 0;
         let dragOffsetY = 0;
 
-        // shake
+        let betaValue = 0;
+        let gammaValue = 0;
+
         let lastMagnitude = 0;
         let lastShakeTime = 0;
 
-        // secret exit
+        let animationId = null;
+
+        // ---------- 秘密手勢 ----------
         const secretTapCount = ref(0);
         let secretTapTimer = null;
 
-        const EDGE_MARGIN = 26;
+        const EDGE_MARGIN = 18;
+        const FRICTION = 0.985;
+        const MAX_SPEED = 18;
 
         const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
@@ -377,51 +638,47 @@
           };
         };
 
-        const resetToCenter = () => {
-          baseX.value = window.innerWidth / 2;
-          baseY.value = window.innerHeight / 2;
-          tiltOffsetX.value = 0;
-          tiltOffsetY.value = 0;
-        };
-
-        const finalX = computed(() => {
-          const b = getBounds();
-          return clamp(baseX.value + tiltOffsetX.value, b.minX, b.maxX);
-        });
-
-        const finalY = computed(() => {
-          const b = getBounds();
-          return clamp(baseY.value + tiltOffsetY.value, b.minY, b.maxY);
-        });
-
         const objectStyle = computed(() => ({
           width: objectSize.value + 'px',
-          left: finalX.value + 'px',
-          top: finalY.value + 'px'
+          left: posX.value + 'px',
+          top: posY.value + 'px'
         }));
 
-        watch(objectSize, (v) => localStorage.setItem('magic_object_size', String(v)));
-        watch(shakeThreshold, (v) => localStorage.setItem('magic_shake_threshold', String(v)));
-        watch(tiltSensitivity, (v) => localStorage.setItem('magic_tilt_sensitivity', String(v)));
+        const formatTime = (ts) => {
+          const d = new Date(ts);
+          const y = d.getFullYear();
+          const m = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          const hh = String(d.getHours()).padStart(2, '0');
+          const mm = String(d.getMinutes()).padStart(2, '0');
+          return `${y}/${m}/${day} ${hh}:${mm}`;
+        };
+
+        const resetPhysics = () => {
+          posX.value = window.innerWidth / 2;
+          posY.value = window.innerHeight / 2;
+          velX.value = 0;
+          velY.value = 0;
+        };
 
         const hideObject = () => {
           isRevealed.value = false;
-          tiltOffsetX.value = 0;
-          tiltOffsetY.value = 0;
+          velX.value = 0;
+          velY.value = 0;
           isDragging.value = false;
           dragPointerId = null;
         };
 
         const revealObject = () => {
-          resetToCenter();
+          resetPhysics();
           isRevealed.value = true;
           if (navigator.vibrate) navigator.vibrate(40);
         };
 
         const checkEdgeDisappear = () => {
           const half = getHalfSize();
-          const x = finalX.value;
-          const y = finalY.value;
+          const x = posX.value;
+          const y = posY.value;
 
           if (
             x - half <= EDGE_MARGIN ||
@@ -433,39 +690,50 @@
           }
         };
 
-        const requestPermissions = async () => {
-          sensorStatus.value = '正在請求感測器權限...';
+        // ---------- 動畫物理 ----------
+        const animate = () => {
+          if (step.value === 2 && isRevealed.value && !isDragging.value) {
+            const bounds = getBounds();
 
-          try {
-            if (
-              typeof DeviceMotionEvent !== 'undefined' &&
-              typeof DeviceMotionEvent.requestPermission === 'function'
-            ) {
-              const motionResult = await DeviceMotionEvent.requestPermission();
-              if (motionResult !== 'granted') {
-                sensorStatus.value = 'Motion 權限被拒絕';
-                return;
-              }
+            // gamma 左右傾，beta 前後傾
+            const ax = clamp((gammaValue / 45) * Number(tiltForce.value), -2.5, 2.5);
+            const ay = clamp((betaValue / 45) * Number(tiltForce.value), -2.5, 2.5);
+
+            velX.value += ax;
+            velY.value += ay;
+
+            velX.value *= FRICTION;
+            velY.value *= FRICTION;
+
+            velX.value = clamp(velX.value, -MAX_SPEED, MAX_SPEED);
+            velY.value = clamp(velY.value, -MAX_SPEED, MAX_SPEED);
+
+            posX.value += velX.value;
+            posY.value += velY.value;
+
+            if (posX.value <= bounds.minX) {
+              posX.value = bounds.minX;
+              velX.value = 0;
+            } else if (posX.value >= bounds.maxX) {
+              posX.value = bounds.maxX;
+              velX.value = 0;
             }
 
-            if (
-              typeof DeviceOrientationEvent !== 'undefined' &&
-              typeof DeviceOrientationEvent.requestPermission === 'function'
-            ) {
-              const orientationResult = await DeviceOrientationEvent.requestPermission();
-              if (orientationResult !== 'granted') {
-                sensorStatus.value = 'Orientation 權限被拒絕';
-                return;
-              }
+            if (posY.value <= bounds.minY) {
+              posY.value = bounds.minY;
+              velY.value = 0;
+            } else if (posY.value >= bounds.maxY) {
+              posY.value = bounds.maxY;
+              velY.value = 0;
             }
 
-            step.value = 1;
-            await testSensors();
-          } catch (err) {
-            sensorStatus.value = '請求權限失敗：' + err;
+            checkEdgeDisappear();
           }
+
+          animationId = requestAnimationFrame(animate);
         };
 
+        // ---------- 圖片壓縮 ----------
         const compressBackground = (file, maxWidth = 1400, quality = 0.84) => {
           return new Promise((resolve, reject) => {
             const reader = new FileReader();
@@ -505,12 +773,10 @@
                 const canvas = document.createElement('canvas');
                 canvas.width = w;
                 canvas.height = h;
-
                 const ctx = canvas.getContext('2d', { alpha: true });
                 ctx.clearRect(0, 0, w, h);
                 ctx.drawImage(img, 0, 0, w, h);
 
-                // 保留透明度
                 resolve(canvas.toDataURL('image/png'));
               };
               img.onerror = reject;
@@ -521,23 +787,30 @@
           });
         };
 
-        const handleImageUpload = async (e, type) => {
+        const addAsset = async (e, type) => {
           const file = e.target.files && e.target.files[0];
           if (!file) return;
 
           sensorStatus.value = '正在處理圖片...';
 
           try {
-            if (type === 'bg') {
-              const dataUrl = await compressBackground(file);
-              bgImage.value = dataUrl;
-              localStorage.setItem('magic_bg', dataUrl);
-            } else {
-              const dataUrl = await compressObjectPreserveAlpha(file);
-              objImage.value = dataUrl;
-              localStorage.setItem('magic_obj', dataUrl);
-            }
-            sensorStatus.value = '圖片已載入';
+            const dataUrl = type === 'bg'
+              ? await compressBackground(file)
+              : await compressObjectPreserveAlpha(file);
+
+            const asset = {
+              id: `${type}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+              type,
+              name: file.name,
+              dataUrl,
+              createdAt: Date.now()
+            };
+
+            await saveAssetToDB(asset);
+            await refreshAssets();
+            selectAsset(type, asset.id);
+
+            sensorStatus.value = `${type === 'bg' ? '背景' : '物件'}已上傳`;
           } catch (err) {
             sensorStatus.value = '圖片處理失敗：' + err;
           } finally {
@@ -545,6 +818,7 @@
           }
         };
 
+        // ---------- 感測器 ----------
         const handleMotion = (e) => {
           motionCount++;
 
@@ -573,35 +847,14 @@
 
           if (step.value === 1) {
             sensorStatus.value =
-              `Motion 正常\nx: ${x.toFixed(2)}\ny: ${y.toFixed(2)}\nz: ${z.toFixed(2)}\nΔ: ${delta.toFixed(2)}`;
+              `Motion 正常\nx: ${x.toFixed(2)}\ny: ${y.toFixed(2)}\nz: ${z.toFixed(2)}\nΔ: ${delta.toFixed(2)}\nβ: ${betaValue.toFixed(1)}  γ: ${gammaValue.toFixed(1)}`;
           }
         };
 
         const handleOrientation = (e) => {
           orientationCount++;
-
-          const beta = Number(e.beta || 0);   // 前後傾
-          const gamma = Number(e.gamma || 0); // 左右傾
-
-          if (step.value === 1) {
-            sensorReady.value = true;
-            sensorStatus.value += `\nβ: ${beta.toFixed(1)}  γ: ${gamma.toFixed(1)}`;
-          }
-
-          if (step.value !== 2 || !isRevealed.value || isDragging.value) return;
-
-          // gamma 左右，beta 前後
-          const maxTiltPx = Math.min(window.innerWidth, window.innerHeight) * 0.22;
-          const sensitivity = Number(tiltSensitivity.value);
-
-          const targetX = clamp((gamma / 45) * maxTiltPx * (sensitivity / 8), -maxTiltPx, maxTiltPx);
-          const targetY = clamp((beta / 45) * maxTiltPx * (sensitivity / 8), -maxTiltPx, maxTiltPx);
-
-          // 低通濾波，讓滑動不要太抖
-          tiltOffsetX.value = tiltOffsetX.value * 0.82 + targetX * 0.18;
-          tiltOffsetY.value = tiltOffsetY.value * 0.82 + targetY * 0.18;
-
-          checkEdgeDisappear();
+          betaValue = Number(e.beta || 0);
+          gammaValue = Number(e.gamma || 0);
         };
 
         const startSensors = () => {
@@ -645,15 +898,51 @@
           }, 1500);
         };
 
+        const requestPermissions = async () => {
+          sensorStatus.value = '正在請求感測器權限...';
+
+          try {
+            if (
+              typeof DeviceMotionEvent !== 'undefined' &&
+              typeof DeviceMotionEvent.requestPermission === 'function'
+            ) {
+              const motionResult = await DeviceMotionEvent.requestPermission();
+              if (motionResult !== 'granted') {
+                sensorStatus.value = 'Motion 權限被拒絕';
+                return;
+              }
+            }
+
+            if (
+              typeof DeviceOrientationEvent !== 'undefined' &&
+              typeof DeviceOrientationEvent.requestPermission === 'function'
+            ) {
+              const orientationResult = await DeviceOrientationEvent.requestPermission();
+              if (orientationResult !== 'granted') {
+                sensorStatus.value = 'Orientation 權限被拒絕';
+                return;
+              }
+            }
+
+            step.value = 1;
+            await testSensors();
+          } catch (err) {
+            sensorStatus.value = '請求權限失敗：' + err;
+          }
+        };
+
+        // ---------- 表演 ----------
         const enterMagicMode = () => {
+          if (!currentBg.value || !currentObj.value) return;
           step.value = 2;
           hideObject();
-          resetToCenter();
+          resetPhysics();
           lastMagnitude = 0;
           lastShakeTime = 0;
           startSensors();
         };
 
+        // ---------- 拖曳 ----------
         const startDrag = (e) => {
           if (!isRevealed.value) return;
 
@@ -662,11 +951,8 @@
 
           isDragging.value = true;
           dragPointerId = e.pointerId;
-
-          const currentX = finalX.value;
-          const currentY = finalY.value;
-          dragOffsetX = e.clientX - currentX;
-          dragOffsetY = e.clientY - currentY;
+          dragOffsetX = e.clientX - posX.value;
+          dragOffsetY = e.clientY - posY.value;
 
           if (e.target.setPointerCapture) {
             e.target.setPointerCapture(e.pointerId);
@@ -679,17 +965,14 @@
 
         const onDragMove = (e) => {
           if (!isDragging.value || e.pointerId !== dragPointerId) return;
-
           e.preventDefault();
 
-          const b = getBounds();
-          const newX = clamp(e.clientX - dragOffsetX, b.minX, b.maxX);
-          const newY = clamp(e.clientY - dragOffsetY, b.minY, b.maxY);
+          const bounds = getBounds();
+          posX.value = clamp(e.clientX - dragOffsetX, bounds.minX, bounds.maxX);
+          posY.value = clamp(e.clientY - dragOffsetY, bounds.minY, bounds.maxY);
 
-          baseX.value = newX;
-          baseY.value = newY;
-          tiltOffsetX.value = 0;
-          tiltOffsetY.value = 0;
+          velX.value = 0;
+          velY.value = 0;
 
           checkEdgeDisappear();
         };
@@ -711,6 +994,7 @@
           e.preventDefault();
         };
 
+        // ---------- 秘密返回：三下 ----------
         const onSecretExitTap = (e) => {
           e.preventDefault();
           e.stopPropagation();
@@ -721,10 +1005,10 @@
             clearTimeout(secretTapTimer);
             secretTapTimer = setTimeout(() => {
               secretTapCount.value = 0;
-            }, 1200);
+            }, 1100);
           }
 
-          if (secretTapCount.value >= 4) {
+          if (secretTapCount.value >= 3) {
             clearTimeout(secretTapTimer);
             secretTapCount.value = 0;
             step.value = 1;
@@ -734,9 +1018,9 @@
         };
 
         const handleResize = () => {
-          const b = getBounds();
-          baseX.value = clamp(baseX.value, b.minX, b.maxX);
-          baseY.value = clamp(baseY.value, b.minY, b.maxY);
+          const bounds = getBounds();
+          posX.value = clamp(posX.value, bounds.minX, bounds.maxX);
+          posY.value = clamp(posY.value, bounds.minY, bounds.maxY);
           checkEdgeDisappear();
         };
 
@@ -744,11 +1028,16 @@
           e.preventDefault();
         };
 
-        onMounted(() => {
+        onMounted(async () => {
+          await openDB();
+          await refreshAssets();
+          animationId = requestAnimationFrame(animate);
+
           document.addEventListener('dblclick', preventDoubleTapZoom, { passive: false });
           window.addEventListener('resize', handleResize);
-          if (bgImage.value || objImage.value) {
-            sensorStatus.value = '已載入上次設定';
+
+          if (backgrounds.value.length || objects.value.length) {
+            sensorStatus.value = '已載入已儲存素材';
           }
         });
 
@@ -761,26 +1050,34 @@
           window.removeEventListener('pointerup', endDrag);
           window.removeEventListener('pointercancel', endDrag);
           document.removeEventListener('dblclick', preventDoubleTapZoom);
+          if (animationId) cancelAnimationFrame(animationId);
         });
 
         return {
           step,
-          bgImage,
-          objImage,
-          objectSize,
-          shakeThreshold,
-          tiltSensitivity,
           sensorReady,
           sensorStatus,
+          backgrounds,
+          objects,
+          selectedBgId,
+          selectedObjId,
+          currentBg,
+          currentObj,
+          objectSize,
+          shakeThreshold,
+          tiltForce,
           isRevealed,
           objectStyle,
           requestPermissions,
-          handleImageUpload,
           testSensors,
+          addAsset,
+          selectAsset,
+          deleteAsset,
           enterMagicMode,
           startDrag,
           onStagePointerDown,
-          onSecretExitTap
+          onSecretExitTap,
+          formatTime
         };
       }
     }).mount('#app');
