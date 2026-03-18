@@ -6,11 +6,11 @@
     name="viewport"
     content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
   />
-  <title>Magic Coin</title>
+  <title>Magic Coin Pro</title>
   <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
   <style>
     :root {
-      --panel-bg: rgba(20, 20, 20, 0.92);
+      --panel-bg: rgba(20, 20, 20, 0.94);
       --card-bg: rgba(255, 255, 255, 0.06);
       --text: #f5f5f5;
       --muted: #b8b8b8;
@@ -32,7 +32,8 @@
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       user-select: none;
       -webkit-user-select: none;
-      touch-action: manipulation;
+      touch-action: none;
+      overscroll-behavior: none;
     }
 
     #app {
@@ -41,6 +42,7 @@
       position: relative;
       overflow: hidden;
       background: #000;
+      touch-action: none;
     }
 
     .screen {
@@ -54,7 +56,7 @@
       justify-content: center;
       background:
         radial-gradient(circle at center, #222 0%, #111 40%, #000 100%);
-      padding: 24px;
+      padding: 20px;
     }
 
     .panel {
@@ -70,7 +72,6 @@
     .panel h1, .panel h2 {
       margin: 0 0 14px;
       font-weight: 700;
-      letter-spacing: 0.2px;
     }
 
     .panel p {
@@ -108,7 +109,7 @@
     .value {
       font-size: 13px;
       color: var(--muted);
-      min-width: 64px;
+      min-width: 76px;
       text-align: right;
     }
 
@@ -154,6 +155,13 @@
       white-space: pre-line;
     }
 
+    .footer-note {
+      margin-top: 12px;
+      font-size: 12px;
+      color: #9fb4c7;
+      line-height: 1.5;
+    }
+
     .magic-screen {
       position: absolute;
       inset: 0;
@@ -162,20 +170,30 @@
       background-position: center;
       background-size: cover;
       overflow: hidden;
+      touch-action: none;
+    }
+
+    .gesture-layer {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      touch-action: none;
     }
 
     .magic-object {
       position: absolute;
-      left: 50%;
-      top: 50%;
+      z-index: 3;
       transform: translate(-50%, -50%);
       transform-origin: center center;
-      will-change: transform, opacity;
-      pointer-events: none;
+      will-change: left, top, transform, opacity;
+      pointer-events: auto;
       opacity: 0;
-      transition: opacity 180ms ease, transform 220ms ease;
+      transition: opacity 140ms ease, transform 140ms ease;
       backface-visibility: hidden;
       -webkit-backface-visibility: hidden;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-drag: none;
     }
 
     .magic-object.revealed {
@@ -183,61 +201,41 @@
       transform: translate(-50%, -50%) scale(1);
     }
 
-    .stage-overlay {
-      position: absolute;
-      inset: 0;
+    .magic-object.hidden {
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(0.95);
       pointer-events: none;
-      background: transparent;
     }
 
-    /* 隱藏返回區：正式版透明 */
-    .secret-exit {
+    .secret-corner {
       position: absolute;
       top: 0;
       left: 0;
-      width: 110px;
-      height: 110px;
-      z-index: 5;
+      width: 120px;
+      height: 120px;
+      z-index: 4;
       background: transparent;
-    }
-
-    .hint-dot {
-      position: absolute;
-      right: 10px;
-      top: 10px;
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: rgba(255,255,255,0.15);
-      pointer-events: none;
-    }
-
-    .footer-note {
-      margin-top: 12px;
-      font-size: 12px;
-      color: #9fb4c7;
-      line-height: 1.5;
+      touch-action: none;
     }
   </style>
 </head>
 <body>
   <div id="app">
-    <!-- Step 0: 啟動 -->
+    <!-- Step 0 -->
     <div v-if="step === 0" class="screen center-screen">
       <div class="panel">
-        <h1>🪄 Magic Coin</h1>
-        <p>先允許感測器權限，再進入設定。建議用手機的 Safari / Chrome，並以 HTTPS 開啟。</p>
-
+        <h1>🪄 Magic Coin Pro</h1>
+        <p>先允許動作與方向感測器權限，再進入設定。</p>
         <button class="btn" @click="requestPermissions">開始</button>
         <div class="status">{{ sensorStatus }}</div>
       </div>
     </div>
 
-    <!-- Step 1: 設定 -->
-    <div v-if="step === 1" class="screen center-screen" style="align-items: flex-start; overflow-y: auto; padding-top: 22px; padding-bottom: 30px;">
+    <!-- Step 1 -->
+    <div v-if="step === 1" class="screen center-screen" style="align-items: flex-start; overflow-y: auto; padding-top: 20px; padding-bottom: 28px;">
       <div class="panel">
         <h2>⚙️ 魔術設定</h2>
-        <p>先上傳背景與硬幣圖片，再調整大小與觸發靈敏度。</p>
+        <p>背景圖可用 JPG；硬幣圖建議一定要用透明 PNG。</p>
 
         <div class="group">
           <div class="label">1. 上傳背景圖</div>
@@ -245,8 +243,8 @@
         </div>
 
         <div class="group">
-          <div class="label">2. 上傳硬幣圖 / 物件圖</div>
-          <input type="file" accept="image/*" @change="(e) => handleImageUpload(e, 'obj')" />
+          <div class="label">2. 上傳硬幣 / 物件圖（透明 PNG 建議）</div>
+          <input type="file" accept="image/png,image/webp,image/*" @change="(e) => handleImageUpload(e, 'obj')" />
         </div>
 
         <div class="group">
@@ -262,117 +260,201 @@
             <div class="label">晃動觸發門檻</div>
             <div class="value">{{ shakeThreshold.toFixed(1) }}</div>
           </div>
-          <input type="range" min="8" max="28" step="0.5" v-model="shakeThreshold" />
-          <p class="footer-note">數值越小越敏感，越大越不容易誤觸。建議先從 14~18 測試。</p>
+          <input type="range" min="1.5" max="12" step="0.1" v-model="shakeThreshold" />
+        </div>
+
+        <div class="group">
+          <div class="row">
+            <div class="label">傾斜滑動靈敏度</div>
+            <div class="value">{{ tiltSensitivity.toFixed(1) }}</div>
+          </div>
+          <input type="range" min="1" max="18" step="0.5" v-model="tiltSensitivity" />
         </div>
 
         <div class="group">
           <div class="row">
             <div class="label">感測器狀態</div>
-            <div class="value">{{ motionReady ? '已連線' : '未連線' }}</div>
+            <div class="value">{{ sensorReady ? '正常' : '未就緒' }}</div>
           </div>
           <div class="status">{{ sensorStatus }}</div>
           <button class="btn secondary" @click="testSensors">重新測試感測器</button>
         </div>
 
-        <button class="btn"
-          :disabled="!bgImage || !objImage"
-          @click="enterMagicMode">
+        <button class="btn" :disabled="!bgImage || !objImage" @click="enterMagicMode">
           進入表演模式
         </button>
 
         <p class="footer-note">
-          隱藏返回方式：左上角快速點 4 下可回到設定頁。
+          左上角快速點 4 下可回設定頁。<br>
+          硬幣拖到邊緣會消失，必須再晃一次才出現。
         </p>
       </div>
     </div>
 
-    <!-- Step 2: 表演 -->
+    <!-- Step 2 -->
     <div
       v-if="step === 2"
       class="screen magic-screen"
       :style="{ backgroundImage: bgImage ? `url(${bgImage})` : 'none' }"
+      @dblclick.prevent
     >
-      <div class="secret-exit" @pointerdown="onSecretExitTap"></div>
+      <div class="gesture-layer" @pointerdown="onStagePointerDown"></div>
+      <div class="secret-corner" @pointerdown="onSecretExitTap"></div>
 
       <img
         v-if="objImage"
         :src="objImage"
         class="magic-object"
-        :class="{ revealed: isRevealed }"
+        :class="isRevealed ? 'revealed' : 'hidden'"
         :style="objectStyle"
         alt=""
         draggable="false"
+        @pointerdown="startDrag"
       />
-
-      <div class="stage-overlay">
-        <div class="hint-dot"></div>
-      </div>
     </div>
   </div>
 
   <script>
-    const { createApp, ref, computed, onMounted, onBeforeUnmount, watch } = Vue;
+    const { createApp, ref, computed, watch, onMounted, onBeforeUnmount } = Vue;
 
     createApp({
       setup() {
         const step = ref(0);
 
-        // 圖片
+        // 資料
         const bgImage = ref(localStorage.getItem('magic_bg') || '');
         const objImage = ref(localStorage.getItem('magic_obj') || '');
 
-        // 物件
         const objectSize = ref(Number(localStorage.getItem('magic_object_size')) || 150);
+        const shakeThreshold = ref(Number(localStorage.getItem('magic_shake_threshold')) || 3.5);
+        const tiltSensitivity = ref(Number(localStorage.getItem('magic_tilt_sensitivity')) || 8);
 
-        // 觸發相關
-        const isRevealed = ref(false);
-        const shakeThreshold = ref(Number(localStorage.getItem('magic_shake_threshold')) || 16);
-        const motionReady = ref(false);
+        // 感測器
+        const sensorReady = ref(false);
         const sensorStatus = ref('尚未啟動感測器');
-
-        // 感測值
-        let listening = false;
-        let lastShakeTime = 0;
-        let lastMagnitude = 0;
-        let motionEventCount = 0;
+        let motionListening = false;
+        let orientationListening = false;
+        let motionCount = 0;
+        let orientationCount = 0;
         let sensorTestTimer = null;
 
-        // 隱藏返回
+        // 顯示狀態
+        const isRevealed = ref(false);
+
+        // 物件位置
+        const baseX = ref(window.innerWidth / 2);
+        const baseY = ref(window.innerHeight / 2);
+        const tiltOffsetX = ref(0);
+        const tiltOffsetY = ref(0);
+
+        // drag
+        const isDragging = ref(false);
+        let dragPointerId = null;
+        let dragOffsetX = 0;
+        let dragOffsetY = 0;
+
+        // shake
+        let lastMagnitude = 0;
+        let lastShakeTime = 0;
+
+        // secret exit
         const secretTapCount = ref(0);
         let secretTapTimer = null;
 
-        const objectStyle = computed(() => {
+        const EDGE_MARGIN = 26;
+
+        const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+
+        const getHalfSize = () => objectSize.value / 2;
+
+        const getBounds = () => {
+          const half = getHalfSize();
           return {
-            width: objectSize.value + 'px',
-            height: 'auto',
-            opacity: isRevealed.value ? 1 : 0,
-            transform: isRevealed.value
-              ? 'translate(-50%, -50%) scale(1)'
-              : 'translate(-50%, -50%) scale(0.96)'
+            minX: half,
+            maxX: window.innerWidth - half,
+            minY: half,
+            maxY: window.innerHeight - half
           };
+        };
+
+        const resetToCenter = () => {
+          baseX.value = window.innerWidth / 2;
+          baseY.value = window.innerHeight / 2;
+          tiltOffsetX.value = 0;
+          tiltOffsetY.value = 0;
+        };
+
+        const finalX = computed(() => {
+          const b = getBounds();
+          return clamp(baseX.value + tiltOffsetX.value, b.minX, b.maxX);
         });
 
-        watch(objectSize, (v) => {
-          localStorage.setItem('magic_object_size', String(v));
+        const finalY = computed(() => {
+          const b = getBounds();
+          return clamp(baseY.value + tiltOffsetY.value, b.minY, b.maxY);
         });
 
-        watch(shakeThreshold, (v) => {
-          localStorage.setItem('magic_shake_threshold', String(v));
-        });
+        const objectStyle = computed(() => ({
+          width: objectSize.value + 'px',
+          left: finalX.value + 'px',
+          top: finalY.value + 'px'
+        }));
+
+        watch(objectSize, (v) => localStorage.setItem('magic_object_size', String(v)));
+        watch(shakeThreshold, (v) => localStorage.setItem('magic_shake_threshold', String(v)));
+        watch(tiltSensitivity, (v) => localStorage.setItem('magic_tilt_sensitivity', String(v)));
+
+        const hideObject = () => {
+          isRevealed.value = false;
+          tiltOffsetX.value = 0;
+          tiltOffsetY.value = 0;
+          isDragging.value = false;
+          dragPointerId = null;
+        };
+
+        const revealObject = () => {
+          resetToCenter();
+          isRevealed.value = true;
+          if (navigator.vibrate) navigator.vibrate(40);
+        };
+
+        const checkEdgeDisappear = () => {
+          const half = getHalfSize();
+          const x = finalX.value;
+          const y = finalY.value;
+
+          if (
+            x - half <= EDGE_MARGIN ||
+            y - half <= EDGE_MARGIN ||
+            window.innerWidth - (x + half) <= EDGE_MARGIN ||
+            window.innerHeight - (y + half) <= EDGE_MARGIN
+          ) {
+            hideObject();
+          }
+        };
 
         const requestPermissions = async () => {
           sensorStatus.value = '正在請求感測器權限...';
 
           try {
-            // iOS 13+
             if (
               typeof DeviceMotionEvent !== 'undefined' &&
               typeof DeviceMotionEvent.requestPermission === 'function'
             ) {
-              const result = await DeviceMotionEvent.requestPermission();
-              if (result !== 'granted') {
-                sensorStatus.value = '感測器權限被拒絕';
+              const motionResult = await DeviceMotionEvent.requestPermission();
+              if (motionResult !== 'granted') {
+                sensorStatus.value = 'Motion 權限被拒絕';
+                return;
+              }
+            }
+
+            if (
+              typeof DeviceOrientationEvent !== 'undefined' &&
+              typeof DeviceOrientationEvent.requestPermission === 'function'
+            ) {
+              const orientationResult = await DeviceOrientationEvent.requestPermission();
+              if (orientationResult !== 'granted') {
+                sensorStatus.value = 'Orientation 權限被拒絕';
                 return;
               }
             }
@@ -384,34 +466,56 @@
           }
         };
 
-        const compressImage = (file, maxWidth, quality = 0.82) => {
+        const compressBackground = (file, maxWidth = 1400, quality = 0.84) => {
           return new Promise((resolve, reject) => {
             const reader = new FileReader();
-
             reader.onload = (e) => {
               const img = new Image();
-
               img.onload = () => {
                 const scale = Math.min(1, maxWidth / img.width);
-                const targetWidth = Math.round(img.width * scale);
-                const targetHeight = Math.round(img.height * scale);
+                const w = Math.round(img.width * scale);
+                const h = Math.round(img.height * scale);
 
                 const canvas = document.createElement('canvas');
-                canvas.width = targetWidth;
-                canvas.height = targetHeight;
+                canvas.width = w;
+                canvas.height = h;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, w, h);
 
-                const ctx = canvas.getContext('2d', { alpha: true });
-                ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
-
-                // 圖片壓縮後再存，避免卡頓
-                const output = canvas.toDataURL('image/jpeg', quality);
-                resolve(output);
+                resolve(canvas.toDataURL('image/jpeg', quality));
               };
-
               img.onerror = reject;
               img.src = e.target.result;
             };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+        };
 
+        const compressObjectPreserveAlpha = (file, maxWidth = 900) => {
+          return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              const img = new Image();
+              img.onload = () => {
+                const scale = Math.min(1, maxWidth / img.width);
+                const w = Math.round(img.width * scale);
+                const h = Math.round(img.height * scale);
+
+                const canvas = document.createElement('canvas');
+                canvas.width = w;
+                canvas.height = h;
+
+                const ctx = canvas.getContext('2d', { alpha: true });
+                ctx.clearRect(0, 0, w, h);
+                ctx.drawImage(img, 0, 0, w, h);
+
+                // 保留透明度
+                resolve(canvas.toDataURL('image/png'));
+              };
+              img.onerror = reject;
+              img.src = e.target.result;
+            };
             reader.onerror = reject;
             reader.readAsDataURL(file);
           });
@@ -425,17 +529,14 @@
 
           try {
             if (type === 'bg') {
-              // 背景圖可稍大，但仍先壓縮
-              const dataUrl = await compressImage(file, 1400, 0.82);
+              const dataUrl = await compressBackground(file);
               bgImage.value = dataUrl;
               localStorage.setItem('magic_bg', dataUrl);
             } else {
-              // 物件圖壓更小，避免表演頁卡
-              const dataUrl = await compressImage(file, 700, 0.9);
+              const dataUrl = await compressObjectPreserveAlpha(file);
               objImage.value = dataUrl;
               localStorage.setItem('magic_obj', dataUrl);
             }
-
             sensorStatus.value = '圖片已載入';
           } catch (err) {
             sensorStatus.value = '圖片處理失敗：' + err;
@@ -444,48 +545,15 @@
           }
         };
 
-        const stopMotion = () => {
-          if (listening) {
-            window.removeEventListener('devicemotion', handleMotion);
-            listening = false;
-          }
-        };
-
-        const startMotion = () => {
-          stopMotion();
-          window.addEventListener('devicemotion', handleMotion, { passive: true });
-          listening = true;
-        };
-
-        const testSensors = async () => {
-          motionReady.value = false;
-          motionEventCount = 0;
-          sensorStatus.value = '正在測試感測器，請輕輕晃動手機...';
-
-          startMotion();
-
-          if (sensorTestTimer) clearTimeout(sensorTestTimer);
-          sensorTestTimer = setTimeout(() => {
-            if (motionEventCount > 0) {
-              motionReady.value = true;
-              sensorStatus.value = `感測器正常（偵測到 ${motionEventCount} 次事件）`;
-            } else {
-              motionReady.value = false;
-              sensorStatus.value =
-                '沒有偵測到感測器資料。\n請確認：\n1. 你是用手機開啟\n2. 已允許動作感測權限\n3. iPhone 使用 HTTPS';
-            }
-          }, 1500);
-        };
-
         const handleMotion = (e) => {
-          motionEventCount++;
+          motionCount++;
 
-          const accRaw = e.acceleration || e.accelerationIncludingGravity;
-          if (!accRaw) return;
+          const acc = e.acceleration || e.accelerationIncludingGravity;
+          if (!acc) return;
 
-          const x = Number(accRaw.x || 0);
-          const y = Number(accRaw.y || 0);
-          const z = Number(accRaw.z || 0);
+          const x = Number(acc.x || 0);
+          const y = Number(acc.y || 0);
+          const z = Number(acc.z || 0);
 
           const magnitude = Math.sqrt(x * x + y * y + z * z);
           const delta = Math.abs(magnitude - lastMagnitude);
@@ -493,42 +561,160 @@
 
           const now = Date.now();
 
-          // 表演模式下用 delta 判斷，比直接看單軸穩一些
           if (
             step.value === 2 &&
             !isRevealed.value &&
             delta > Number(shakeThreshold.value) &&
             now - lastShakeTime > 700
           ) {
-            isRevealed.value = true;
             lastShakeTime = now;
-
-            if (navigator.vibrate) {
-              navigator.vibrate(50);
-            }
+            revealObject();
           }
 
-          // 設定頁只更新狀態，不頻繁重繪畫面
           if (step.value === 1) {
-            motionReady.value = true;
-            sensorStatus.value = `感測器正常
-x: ${x.toFixed(2)}
-y: ${y.toFixed(2)}
-z: ${z.toFixed(2)}
-Δ: ${delta.toFixed(2)}`;
+            sensorStatus.value =
+              `Motion 正常\nx: ${x.toFixed(2)}\ny: ${y.toFixed(2)}\nz: ${z.toFixed(2)}\nΔ: ${delta.toFixed(2)}`;
           }
+        };
+
+        const handleOrientation = (e) => {
+          orientationCount++;
+
+          const beta = Number(e.beta || 0);   // 前後傾
+          const gamma = Number(e.gamma || 0); // 左右傾
+
+          if (step.value === 1) {
+            sensorReady.value = true;
+            sensorStatus.value += `\nβ: ${beta.toFixed(1)}  γ: ${gamma.toFixed(1)}`;
+          }
+
+          if (step.value !== 2 || !isRevealed.value || isDragging.value) return;
+
+          // gamma 左右，beta 前後
+          const maxTiltPx = Math.min(window.innerWidth, window.innerHeight) * 0.22;
+          const sensitivity = Number(tiltSensitivity.value);
+
+          const targetX = clamp((gamma / 45) * maxTiltPx * (sensitivity / 8), -maxTiltPx, maxTiltPx);
+          const targetY = clamp((beta / 45) * maxTiltPx * (sensitivity / 8), -maxTiltPx, maxTiltPx);
+
+          // 低通濾波，讓滑動不要太抖
+          tiltOffsetX.value = tiltOffsetX.value * 0.82 + targetX * 0.18;
+          tiltOffsetY.value = tiltOffsetY.value * 0.82 + targetY * 0.18;
+
+          checkEdgeDisappear();
+        };
+
+        const startSensors = () => {
+          stopSensors();
+          window.addEventListener('devicemotion', handleMotion, { passive: true });
+          window.addEventListener('deviceorientation', handleOrientation, { passive: true });
+          motionListening = true;
+          orientationListening = true;
+        };
+
+        const stopSensors = () => {
+          if (motionListening) {
+            window.removeEventListener('devicemotion', handleMotion);
+            motionListening = false;
+          }
+          if (orientationListening) {
+            window.removeEventListener('deviceorientation', handleOrientation);
+            orientationListening = false;
+          }
+        };
+
+        const testSensors = async () => {
+          motionCount = 0;
+          orientationCount = 0;
+          sensorReady.value = false;
+          sensorStatus.value = '正在測試感測器，請輕晃並傾斜手機...';
+
+          startSensors();
+
+          clearTimeout(sensorTestTimer);
+          sensorTestTimer = setTimeout(() => {
+            if (motionCount > 0 || orientationCount > 0) {
+              sensorReady.value = true;
+              sensorStatus.value =
+                `感測器正常\nmotion: ${motionCount} 次\norientation: ${orientationCount} 次`;
+            } else {
+              sensorReady.value = false;
+              sensorStatus.value =
+                '沒有收到感測器資料。\n請確認：\n1. 用手機開啟\n2. 已允許權限\n3. iPhone 使用 HTTPS';
+            }
+          }, 1500);
         };
 
         const enterMagicMode = () => {
-          isRevealed.value = false;
-          secretTapCount.value = 0;
+          step.value = 2;
+          hideObject();
+          resetToCenter();
           lastMagnitude = 0;
           lastShakeTime = 0;
-          step.value = 2;
-          startMotion();
+          startSensors();
         };
 
-        const onSecretExitTap = () => {
+        const startDrag = (e) => {
+          if (!isRevealed.value) return;
+
+          e.preventDefault();
+          e.stopPropagation();
+
+          isDragging.value = true;
+          dragPointerId = e.pointerId;
+
+          const currentX = finalX.value;
+          const currentY = finalY.value;
+          dragOffsetX = e.clientX - currentX;
+          dragOffsetY = e.clientY - currentY;
+
+          if (e.target.setPointerCapture) {
+            e.target.setPointerCapture(e.pointerId);
+          }
+
+          window.addEventListener('pointermove', onDragMove, { passive: false });
+          window.addEventListener('pointerup', endDrag, { passive: false });
+          window.addEventListener('pointercancel', endDrag, { passive: false });
+        };
+
+        const onDragMove = (e) => {
+          if (!isDragging.value || e.pointerId !== dragPointerId) return;
+
+          e.preventDefault();
+
+          const b = getBounds();
+          const newX = clamp(e.clientX - dragOffsetX, b.minX, b.maxX);
+          const newY = clamp(e.clientY - dragOffsetY, b.minY, b.maxY);
+
+          baseX.value = newX;
+          baseY.value = newY;
+          tiltOffsetX.value = 0;
+          tiltOffsetY.value = 0;
+
+          checkEdgeDisappear();
+        };
+
+        const endDrag = (e) => {
+          if (dragPointerId !== null && e.pointerId !== undefined && e.pointerId !== dragPointerId) return;
+
+          isDragging.value = false;
+          dragPointerId = null;
+
+          window.removeEventListener('pointermove', onDragMove);
+          window.removeEventListener('pointerup', endDrag);
+          window.removeEventListener('pointercancel', endDrag);
+
+          checkEdgeDisappear();
+        };
+
+        const onStagePointerDown = (e) => {
+          e.preventDefault();
+        };
+
+        const onSecretExitTap = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+
           secretTapCount.value++;
 
           if (secretTapCount.value === 1) {
@@ -542,21 +728,39 @@ z: ${z.toFixed(2)}
             clearTimeout(secretTapTimer);
             secretTapCount.value = 0;
             step.value = 1;
-            isRevealed.value = false;
+            hideObject();
             testSensors();
           }
         };
 
+        const handleResize = () => {
+          const b = getBounds();
+          baseX.value = clamp(baseX.value, b.minX, b.maxX);
+          baseY.value = clamp(baseY.value, b.minY, b.maxY);
+          checkEdgeDisappear();
+        };
+
+        const preventDoubleTapZoom = (e) => {
+          e.preventDefault();
+        };
+
         onMounted(() => {
+          document.addEventListener('dblclick', preventDoubleTapZoom, { passive: false });
+          window.addEventListener('resize', handleResize);
           if (bgImage.value || objImage.value) {
             sensorStatus.value = '已載入上次設定';
           }
         });
 
         onBeforeUnmount(() => {
-          stopMotion();
-          clearTimeout(secretTapTimer);
+          stopSensors();
           clearTimeout(sensorTestTimer);
+          clearTimeout(secretTapTimer);
+          window.removeEventListener('resize', handleResize);
+          window.removeEventListener('pointermove', onDragMove);
+          window.removeEventListener('pointerup', endDrag);
+          window.removeEventListener('pointercancel', endDrag);
+          document.removeEventListener('dblclick', preventDoubleTapZoom);
         });
 
         return {
@@ -565,14 +769,17 @@ z: ${z.toFixed(2)}
           objImage,
           objectSize,
           shakeThreshold,
-          isRevealed,
-          motionReady,
+          tiltSensitivity,
+          sensorReady,
           sensorStatus,
+          isRevealed,
           objectStyle,
           requestPermissions,
           handleImageUpload,
           testSensors,
           enterMagicMode,
+          startDrag,
+          onStagePointerDown,
           onSecretExitTap
         };
       }
