@@ -20,7 +20,6 @@
       --danger: #ff7a7a;
       --border: rgba(255,255,255,0.08);
       --shadow: 0 20px 50px rgba(0,0,0,0.35);
-      --radius: 22px;
     }
 
     * {
@@ -65,7 +64,7 @@
     }
 
     .panel {
-      width: min(94vw, 560px);
+      width: min(94vw, 620px);
       max-height: 94vh;
       overflow-y: auto;
       background: var(--panel);
@@ -289,6 +288,96 @@
       line-height: 1.6;
     }
 
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 10px 0;
+      border-top: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .toggle-row:first-child {
+      border-top: none;
+      padding-top: 0;
+    }
+
+    .toggle-label {
+      flex: 1;
+    }
+
+    .toggle-title {
+      font-size: 14px;
+      color: var(--text);
+    }
+
+    .toggle-desc {
+      margin-top: 4px;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .switch {
+      position: relative;
+      width: 52px;
+      height: 30px;
+      flex: 0 0 auto;
+    }
+
+    .switch input {
+      display: none;
+    }
+
+    .slider {
+      position: absolute;
+      inset: 0;
+      background: rgba(255,255,255,0.12);
+      border-radius: 999px;
+      transition: 0.2s ease;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .slider:before {
+      content: "";
+      position: absolute;
+      width: 22px;
+      height: 22px;
+      left: 3px;
+      top: 3px;
+      border-radius: 50%;
+      background: white;
+      transition: 0.2s ease;
+    }
+
+    .switch input:checked + .slider {
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
+    }
+
+    .switch input:checked + .slider:before {
+      transform: translateX(22px);
+    }
+
+    .preview-box {
+      margin-top: 12px;
+      width: 100%;
+      height: 170px;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: #0b0d13;
+      position: relative;
+      background-repeat: no-repeat;
+      background-position: center;
+    }
+
+    .preview-overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: linear-gradient(to bottom, rgba(255,255,255,0.02), rgba(0,0,0,0.08));
+    }
+
     .magic-screen {
       position: absolute;
       inset: 0;
@@ -296,7 +385,6 @@
       background-color: #000;
       background-repeat: no-repeat;
       background-position: center;
-      background-size: cover;
       touch-action: none;
     }
 
@@ -322,7 +410,7 @@
       position: absolute;
       z-index: 3;
       transform-origin: center center;
-      will-change: left, top, transform, opacity;
+      will-change: left, top, width, height, transform, opacity;
       opacity: 0;
       pointer-events: auto;
       transition: opacity 120ms ease;
@@ -346,7 +434,6 @@
 </head>
 <body>
   <div id="app">
-    <!-- Step 0 -->
     <div v-if="step === 0" class="screen center-screen">
       <div class="panel">
         <div class="hero">
@@ -363,14 +450,13 @@
       </div>
     </div>
 
-    <!-- Step 1 -->
     <div v-if="step === 1" class="screen center-screen" style="align-items:flex-start;">
       <div class="panel">
         <div class="hero">
           <div class="badge">⚙︎ Setup</div>
           <h2>Screen Trick</h2>
           <div class="sub">
-            多張背景與物件都會記住。物件只會在拖曳出畫面時消失，傾斜撞牆不會消失。
+            物件大小會分別記住；背景預覽大小也會分別記住。感測器數值只會在你按測試時更新。
           </div>
         </div>
 
@@ -397,6 +483,23 @@
               </div>
             </div>
           </div>
+
+          <template v-if="currentBg">
+            <div class="row" style="margin-top:12px;">
+              <div class="label">背景預覽大小</div>
+              <div class="value">{{ currentBgScale.toFixed(0) }}%</div>
+            </div>
+            <input type="range" min="60" max="160" step="1" v-model.number="currentBgScale" />
+            <div
+              class="preview-box"
+              :style="{
+                backgroundImage: `url(${currentBg.dataUrl})`,
+                backgroundSize: `${currentBgScale}% auto`
+              }"
+            >
+              <div class="preview-overlay"></div>
+            </div>
+          </template>
         </div>
 
         <div class="group">
@@ -424,12 +527,12 @@
           </div>
         </div>
 
-        <div class="group">
+        <div v-if="currentObj" class="group">
           <div class="row">
-            <div class="label">物件大小</div>
-            <div class="value">{{ objectSize }} px</div>
+            <div class="label">目前物件大小</div>
+            <div class="value">{{ currentObjSize }} px</div>
           </div>
-          <input type="range" min="70" max="320" step="2" v-model="objectSize" />
+          <input type="range" min="50" max="360" step="2" v-model.number="currentObjSize" />
         </div>
 
         <div class="group">
@@ -437,7 +540,7 @@
             <div class="label">傾斜靈敏度</div>
             <div class="value">{{ tiltStrength.toFixed(2) }}</div>
           </div>
-          <input type="range" min="0.4" max="2.4" step="0.05" v-model="tiltStrength" />
+          <input type="range" min="0.4" max="2.4" step="0.05" v-model.number="tiltStrength" />
         </div>
 
         <div class="group">
@@ -445,16 +548,40 @@
             <div class="label">晃動觸發門檻</div>
             <div class="value">{{ shakeThreshold.toFixed(2) }}</div>
           </div>
-          <input type="range" min="1.0" max="8.0" step="0.1" v-model="shakeThreshold" />
+          <input type="range" min="1.0" max="8.0" step="0.1" v-model.number="shakeThreshold" />
+        </div>
+
+        <div class="group">
+          <div class="toggle-row">
+            <div class="toggle-label">
+              <div class="toggle-title">點一下畫面可顯示物件</div>
+              <div class="toggle-desc">表演模式下，點一下空白處也能讓物件出現。</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" v-model="tapToShow">
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div class="toggle-row">
+            <div class="toggle-label">
+              <div class="toggle-title">點一下畫面可隱藏物件</div>
+              <div class="toggle-desc">物件已顯示時，點一下空白處可讓它消失。</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" v-model="tapToHide">
+              <span class="slider"></span>
+            </label>
+          </div>
         </div>
 
         <div class="group">
           <div class="row">
             <div class="label">感測器狀態</div>
-            <div class="value">{{ sensorReady ? '正常' : '未就緒' }}</div>
+            <div class="value">{{ sensorReady ? '正常' : '未測試' }}</div>
           </div>
           <div class="status">{{ sensorStatus }}</div>
-          <button class="btn secondary" @click="testSensors">重新測試感測器</button>
+          <button class="btn secondary" @click="testSensors">測試感測器</button>
         </div>
 
         <button class="btn" :disabled="!currentBg || !currentObj" @click="enterMagicMode">
@@ -468,11 +595,13 @@
       </div>
     </div>
 
-    <!-- Step 2 -->
     <div
       v-if="step === 2"
       class="screen magic-screen"
-      :style="{ backgroundImage: currentBg ? `url(${currentBg.dataUrl})` : 'none' }"
+      :style="{
+        backgroundImage: currentBg ? `url(${currentBg.dataUrl})` : 'none',
+        backgroundSize: `${currentBgScale}% auto`
+      }"
       @dblclick.prevent
     >
       <div class="gesture-layer" @pointerdown="onStagePointerDown"></div>
@@ -480,6 +609,7 @@
 
       <img
         v-if="currentObj"
+        ref="magicObjectEl"
         :src="currentObj.dataUrl"
         class="magic-object"
         :class="isRevealed ? 'revealed' : 'hidden'"
@@ -487,6 +617,7 @@
         alt=""
         draggable="false"
         @pointerdown="startDrag"
+        @load="onObjectImageLoad"
       />
     </div>
   </div>
@@ -497,8 +628,8 @@
     createApp({
       setup() {
         const step = ref(0);
+        const magicObjectEl = ref(null);
 
-        // ---------- IndexedDB ----------
         const DB_NAME = 'screenTrickDB';
         const STORE_NAME = 'assets';
         let db = null;
@@ -507,6 +638,15 @@
         const objects = ref([]);
         const selectedBgId = ref(localStorage.getItem('screen_trick_selected_bg') || '');
         const selectedObjId = ref(localStorage.getItem('screen_trick_selected_obj') || '');
+
+        const objectSizeMap = ref(JSON.parse(localStorage.getItem('screen_trick_object_size_map') || '{}'));
+        const backgroundScaleMap = ref(JSON.parse(localStorage.getItem('screen_trick_bg_scale_map') || '{}'));
+
+        const tapToShow = ref(localStorage.getItem('screen_trick_tap_to_show') === 'true');
+        const tapToHide = ref(localStorage.getItem('screen_trick_tap_to_hide') === 'true');
+
+        watch(tapToShow, v => localStorage.setItem('screen_trick_tap_to_show', String(v)));
+        watch(tapToHide, v => localStorage.setItem('screen_trick_tap_to_hide', String(v)));
 
         const openDB = () => new Promise((resolve, reject) => {
           const request = indexedDB.open(DB_NAME, 1);
@@ -552,6 +692,11 @@
           req.onerror = () => reject(req.error);
         });
 
+        const persistMaps = () => {
+          localStorage.setItem('screen_trick_object_size_map', JSON.stringify(objectSizeMap.value));
+          localStorage.setItem('screen_trick_bg_scale_map', JSON.stringify(backgroundScaleMap.value));
+        };
+
         const refreshAssets = async () => {
           const all = await getAllAssets();
 
@@ -579,18 +724,60 @@
         const currentBg = computed(() => backgrounds.value.find(x => x.id === selectedBgId.value) || null);
         const currentObj = computed(() => objects.value.find(x => x.id === selectedObjId.value) || null);
 
+        const currentObjSize = computed({
+          get() {
+            if (!selectedObjId.value) return 150;
+            return Number(objectSizeMap.value[selectedObjId.value] || 150);
+          },
+          set(v) {
+            if (!selectedObjId.value) return;
+            objectSizeMap.value[selectedObjId.value] = Number(v);
+            persistMaps();
+            syncRenderedObjectSize();
+          }
+        });
+
+        const currentBgScale = computed({
+          get() {
+            if (!selectedBgId.value) return 100;
+            return Number(backgroundScaleMap.value[selectedBgId.value] || 100);
+          },
+          set(v) {
+            if (!selectedBgId.value) return;
+            backgroundScaleMap.value[selectedBgId.value] = Number(v);
+            persistMaps();
+          }
+        });
+
         const selectAsset = (type, id) => {
           if (type === 'bg') {
             selectedBgId.value = id;
             localStorage.setItem('screen_trick_selected_bg', id);
+            if (!backgroundScaleMap.value[id]) {
+              backgroundScaleMap.value[id] = 100;
+              persistMaps();
+            }
           } else {
             selectedObjId.value = id;
             localStorage.setItem('screen_trick_selected_obj', id);
+            if (!objectSizeMap.value[id]) {
+              objectSizeMap.value[id] = 150;
+              persistMaps();
+            }
+            syncRenderedObjectSize();
           }
         };
 
         const deleteAsset = async (type, id) => {
           await deleteAssetFromDB(id);
+
+          if (type === 'bg') {
+            delete backgroundScaleMap.value[id];
+          } else {
+            delete objectSizeMap.value[id];
+          }
+          persistMaps();
+
           await refreshAssets();
 
           if (type === 'bg' && selectedBgId.value === id) {
@@ -600,21 +787,19 @@
           if (type === 'obj' && selectedObjId.value === id) {
             selectedObjId.value = objects.value[0]?.id || '';
             localStorage.setItem('screen_trick_selected_obj', selectedObjId.value || '');
+            syncRenderedObjectSize();
           }
         };
 
-        // ---------- Settings ----------
-        const objectSize = ref(Number(localStorage.getItem('screen_trick_object_size')) || 150);
         const tiltStrength = ref(Number(localStorage.getItem('screen_trick_tilt_strength')) || 1.2);
         const shakeThreshold = ref(Number(localStorage.getItem('screen_trick_shake_threshold')) || 2.8);
 
-        watch(objectSize, v => localStorage.setItem('screen_trick_object_size', String(v)));
         watch(tiltStrength, v => localStorage.setItem('screen_trick_tilt_strength', String(v)));
         watch(shakeThreshold, v => localStorage.setItem('screen_trick_shake_threshold', String(v)));
 
-        // ---------- Sensor ----------
         const sensorReady = ref(false);
-        const sensorStatus = ref('尚未啟動感測器');
+        const sensorStatus = ref('尚未測試感測器');
+        const sensorDebugMode = ref(false);
 
         let motionListening = false;
         let orientationListening = false;
@@ -622,7 +807,6 @@
         let orientationCount = 0;
         let sensorTestTimer = null;
 
-        // ---------- Object physics ----------
         const isRevealed = ref(false);
 
         const posX = ref(window.innerWidth / 2);
@@ -633,6 +817,9 @@
         const angle = ref(0);
         const angularVelocity = ref(0);
 
+        const renderedWidth = ref(currentObjSize.value);
+        const renderedHeight = ref(currentObjSize.value);
+
         let betaValue = 0;
         let gammaValue = 0;
 
@@ -640,7 +827,6 @@
         let lastShakeTime = 0;
         let animationId = null;
 
-        // drag
         const isDragging = ref(false);
         let dragPointerId = null;
         let dragOffsetX = 0;
@@ -648,7 +834,6 @@
         let lastDragX = 0;
         let lastDragTime = 0;
 
-        // secret exit
         const secretTapCount = ref(0);
         let secretTapTimer = null;
         let exitLock = false;
@@ -666,20 +851,38 @@
 
         const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
-        const getHalfSize = () => objectSize.value / 2;
+        const syncRenderedObjectSize = () => {
+          const el = magicObjectEl.value;
+          const baseSize = currentObjSize.value;
 
-        const getBounds = () => {
-          const half = getHalfSize();
-          return {
-            minX: half,
-            maxX: window.innerWidth - half,
-            minY: half,
-            maxY: window.innerHeight - half
-          };
+          if (!el || !el.naturalWidth || !el.naturalHeight) {
+            renderedWidth.value = baseSize;
+            renderedHeight.value = baseSize;
+            return;
+          }
+
+          const ratio = el.naturalHeight / el.naturalWidth;
+          renderedWidth.value = baseSize;
+          renderedHeight.value = baseSize * ratio;
         };
 
+        const onObjectImageLoad = () => {
+          syncRenderedObjectSize();
+        };
+
+        const getHalfWidth = () => renderedWidth.value / 2;
+        const getHalfHeight = () => renderedHeight.value / 2;
+
+        const getBounds = () => ({
+          minX: getHalfWidth(),
+          maxX: window.innerWidth - getHalfWidth(),
+          minY: getHalfHeight(),
+          maxY: window.innerHeight - getHalfHeight()
+        });
+
         const objectStyle = computed(() => ({
-          width: objectSize.value + 'px',
+          width: `${renderedWidth.value}px`,
+          height: `${renderedHeight.value}px`,
           left: `${posX.value}px`,
           top: `${posY.value}px`,
           transform: `translate(-50%, -50%) rotate(${angle.value.toFixed(2)}deg)`
@@ -724,24 +927,26 @@
 
         const revealObject = () => {
           resetPhysics();
+          syncRenderedObjectSize();
           isRevealed.value = true;
           if (navigator.vibrate) navigator.vibrate(40);
         };
 
         const shouldDisappearByDrag = () => {
-          const half = getHalfSize();
+          const halfW = getHalfWidth();
+          const halfH = getHalfHeight();
           const x = posX.value;
           const y = posY.value;
           const w = window.innerWidth;
           const h = window.innerHeight;
 
-          const leftOutside = Math.max(0, half - x);
-          const rightOutside = Math.max(0, x + half - w);
-          const topOutside = Math.max(0, half - y);
-          const bottomOutside = Math.max(0, y + half - h);
+          const leftOutside = Math.max(0, halfW - x);
+          const rightOutside = Math.max(0, x + halfW - w);
+          const topOutside = Math.max(0, halfH - y);
+          const bottomOutside = Math.max(0, y + halfH - h);
 
           const maxOutside = Math.max(leftOutside, rightOutside, topOutside, bottomOutside);
-          return maxOutside > objectSize.value * DRAG_DISAPPEAR_RATIO;
+          return maxOutside > Math.min(renderedWidth.value, renderedHeight.value) * DRAG_DISAPPEAR_RATIO;
         };
 
         const addWallSpin = (axis, incomingVelocity) => {
@@ -835,7 +1040,6 @@
           animationId = requestAnimationFrame(animate);
         };
 
-        // ---------- Image processing ----------
         const compressBackground = (file, maxWidth = 1400, quality = 0.84) => {
           return new Promise((resolve, reject) => {
             const reader = new FileReader();
@@ -909,6 +1113,14 @@
             };
 
             await saveAssetToDB(asset);
+
+            if (type === 'bg') {
+              backgroundScaleMap.value[asset.id] = 100;
+            } else {
+              objectSizeMap.value[asset.id] = 150;
+            }
+            persistMaps();
+
             await refreshAssets();
             selectAsset(type, asset.id);
 
@@ -920,7 +1132,6 @@
           }
         };
 
-        // ---------- Sensors ----------
         const handleMotion = (e) => {
           motionCount++;
 
@@ -947,7 +1158,7 @@
             revealObject();
           }
 
-          if (step.value === 1) {
+          if (sensorDebugMode.value && step.value === 1) {
             sensorStatus.value =
               `Motion 正常
 x: ${x.toFixed(2)}
@@ -987,12 +1198,15 @@ z: ${z.toFixed(2)}
           motionCount = 0;
           orientationCount = 0;
           sensorReady.value = false;
+          sensorDebugMode.value = true;
           sensorStatus.value = '正在測試感測器，請輕晃並傾斜手機...';
 
           startSensors();
 
           clearTimeout(sensorTestTimer);
           sensorTestTimer = setTimeout(() => {
+            sensorDebugMode.value = false;
+
             if (motionCount > 0 || orientationCount > 0) {
               sensorReady.value = true;
               sensorStatus.value =
@@ -1034,18 +1248,18 @@ orientation: ${orientationCount} 次`;
             }
 
             step.value = 1;
-            await testSensors();
+            sensorStatus.value = '權限已允許，可開始設定';
           } catch (err) {
             sensorStatus.value = '請求權限失敗：' + err;
           }
         };
 
-        // ---------- Performance ----------
         const enterMagicMode = () => {
           if (!currentBg.value || !currentObj.value) return;
           step.value = 2;
           hideObject();
           resetPhysics();
+          syncRenderedObjectSize();
           lastMagnitude = 0;
           lastShakeTime = 0;
           startSensors();
@@ -1086,7 +1300,6 @@ orientation: ${orientationCount} 次`;
 
           velX.value = dx / (dt / 16.67);
           velY.value = 0;
-
           angularVelocity.value += dx * 0.0018;
 
           lastDragX = e.clientX;
@@ -1113,6 +1326,21 @@ orientation: ${orientationCount} 次`;
 
         const onStagePointerDown = (e) => {
           e.preventDefault();
+
+          if (step.value !== 2) return;
+          if (isDragging.value) return;
+
+          const target = e.target;
+          if (target && target.classList && target.classList.contains('magic-object')) return;
+
+          if (!isRevealed.value && tapToShow.value) {
+            revealObject();
+            return;
+          }
+
+          if (isRevealed.value && tapToHide.value) {
+            hideObject();
+          }
         };
 
         const onSecretExitTap = async (e) => {
@@ -1150,12 +1378,18 @@ orientation: ${orientationCount} 次`;
         };
 
         const handleResize = () => {
+          syncRenderedObjectSize();
           clampInsideStage();
         };
 
         const preventDoubleTapZoom = (e) => {
           e.preventDefault();
         };
+
+        watch(selectedObjId, async () => {
+          await nextTick();
+          syncRenderedObjectSize();
+        });
 
         onMounted(async () => {
           await openDB();
@@ -1192,11 +1426,15 @@ orientation: ${orientationCount} 次`;
           selectedObjId,
           currentBg,
           currentObj,
-          objectSize,
+          currentObjSize,
+          currentBgScale,
           tiltStrength,
           shakeThreshold,
+          tapToShow,
+          tapToHide,
           isRevealed,
           objectStyle,
+          magicObjectEl,
           requestPermissions,
           testSensors,
           addAsset,
@@ -1206,7 +1444,8 @@ orientation: ${orientationCount} 次`;
           startDrag,
           onStagePointerDown,
           onSecretExitTap,
-          formatTime
+          formatTime,
+          onObjectImageLoad
         };
       }
     }).mount('#app');
