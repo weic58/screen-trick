@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Magic Setup - Debug Mode</title>
+  <title>Magic Setup - Performance Optimized</title>
   <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
   <style>
     body, html { margin: 0; padding: 0; width: 100vw; height: 100vh; overflow: hidden; background-color: #000; font-family: sans-serif; user-select: none; -webkit-user-select: none; }
@@ -15,12 +15,11 @@
     .setup-screen { position: absolute; inset: 0; background: #222; color: white; padding: 30px 20px; z-index: 50; display: flex; flex-direction: column; gap: 20px; overflow-y: auto; }
     .magic-screen { position: absolute; inset: 0; background-size: cover; background-position: center; z-index: 10; }
     
-    /* 除錯版：把秘密觸發區變大，並標示為半透明紅色方便定位 */
+    /* 依然保留半透明紅色，方便你定位點擊 */
     .hidden-trigger { position: absolute; top: 0; left: 0; width: 150px; height: 150px; z-index: 20; background: rgba(255, 0, 0, 0.3); }
 
-    .magic-object { position: absolute; transition: opacity 0.2s ease; transform: translate(-50%, -50%); will-change: left, top; }
+    .magic-object { position: absolute; transition: opacity 0.1s ease; transform: translate(-50%, -50%); will-change: left, top; }
     
-    /* 除錯資訊面板 */
     .debug-panel { position: absolute; bottom: 10px; left: 10px; background: rgba(0,0,0,0.7); color: lime; padding: 10px; font-family: monospace; z-index: 999; border-radius: 5px; pointer-events: none;}
   </style>
 </head>
@@ -31,14 +30,14 @@
     </div>
 
     <div v-if="step === 1" class="setup-screen">
-      <h2>除錯設定區</h2>
+      <h2>效能除錯設定區</h2>
       <label>1. 上傳背景: <input type="file" @change="(e) => compressAndSave(e, 'bg')" accept="image/*"></label>
       <label>2. 上傳物件: <input type="file" @change="(e) => compressAndSave(e, 'obj')" accept="image/*"></label>
       <button class="btn" v-if="bgImage && objImage" @click="enterMagicMode">進入魔術模式</button>
     </div>
 
     <div v-if="step === 2" class="magic-screen" :style="{ backgroundImage: `url(${bgImage})` }">
-      <div class="hidden-trigger" @touchstart="onSecretTap"></div>
+      <div class="hidden-trigger" @pointerdown="onSecretTap"></div>
 
       <img v-if="objImage" :src="objImage" class="magic-object"
         :style="{ opacity: isRevealed ? 1 : 0, width: '150px', left: objX + 'px', top: objY + 'px', pointerEvents: isRevealed ? 'auto' : 'none' }"
@@ -66,7 +65,10 @@
         
         const secretTapCount = ref(0);
         let secretTapTimer = null;
-        const debugSensorText = ref('等待感測器數據...');
+        const debugSensorText = ref('等待數據...');
+
+        // 效能優化：限制 UI 更新頻率的計時器
+        let lastUiUpdateTime = 0;
 
         const requestPermissions = async () => {
           if (typeof DeviceMotionEvent.requestPermission === 'function') {
@@ -98,40 +100,38 @@
           window.addEventListener('devicemotion', handleMotion);
         };
 
-        // 更暴力的搖晃判定
         const handleMotion = (e) => {
-          // 優先抓取包含重力的加速度 (大部分手機支援度較好)
           const acc = e.accelerationIncludingGravity || e.acceleration;
-          
-          if (!acc || acc.x === null) {
-            debugSensorText.value = '抓不到數據 (請確認是否為 HTTPS)';
-            return;
+          if (!acc || acc.x === null) return;
+
+          const now = Date.now();
+
+          // 1. 邏輯判定 (背景高速計算，不影響效能)
+          if (!isRevealed.value) {
+            if (Math.abs(acc.x) > 15 || Math.abs(acc.y) > 15 || Math.abs(acc.z) > 15) {
+              isRevealed.value = true;
+              if (navigator.vibrate) navigator.vibrate([50, 50, 50]); // 震動回饋
+            }
           }
 
-          // 顯示在畫面上，確保有數據在跳動
-          debugSensorText.value = `X:${acc.x.toFixed(1)} Y:${acc.y.toFixed(1)} Z:${acc.z.toFixed(1)}`;
-
-          if (isRevealed.value) return;
-
-          // 只要任一軸的絕對加速度超過 15 (可依據 debug 面板顯示的數字調整)
-          if (Math.abs(acc.x) > 15 || Math.abs(acc.y) > 15 || Math.abs(acc.z) > 15) {
-            isRevealed.value = true;
-            if (navigator.vibrate) navigator.vibrate([50, 50, 50]);
+          // 2. UI 畫面更新 (限制每 100 毫秒才讓 Vue 重新渲染一次文字)
+          if (now - lastUiUpdateTime > 100) {
+            debugSensorText.value = `X:${acc.x.toFixed(1)} Y:${acc.y.toFixed(1)} Z:${acc.z.toFixed(1)}`;
+            lastUiUpdateTime = now;
           }
         };
 
         const onSecretTap = (e) => {
-          e.preventDefault();
+          e.preventDefault(); // 防止觸發瀏覽器預設行為
           secretTapCount.value++;
           
           if (secretTapCount.value === 1) {
-            // 把連點等待時間拉長到 1.5 秒
             secretTapTimer = setTimeout(() => { secretTapCount.value = 0; }, 1500); 
           }
           if (secretTapCount.value >= 3) {
             clearTimeout(secretTapTimer);
             window.removeEventListener('devicemotion', handleMotion);
-            step.value = 1; // 回到設定
+            step.value = 1; // 瞬間切回設定
           }
         };
 
